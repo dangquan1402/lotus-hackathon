@@ -49,6 +49,7 @@ async def generate_images(
         session.status = "images_generating"
         await db.flush()
 
+        image_style = session.image_style
         image_tasks = []
         for i, section in enumerate(content.get("sections", [])):
             prompts = section.get("image_prompts") or [section.get("image_prompt", "")]
@@ -58,6 +59,7 @@ async def generate_images(
                         agenerate_image(
                             prompt=prompt,
                             output_path=images_dir / f"scene_{i:02d}_{j:02d}.jpg",
+                            style=image_style,
                         )
                     )
         image_results = await asyncio.gather(*image_tasks)
@@ -194,6 +196,7 @@ async def generate_all(
         # Images
         session.status = "images_generating"
         await db.flush()
+        image_style = session.image_style
         image_tasks = []
         for i, section in enumerate(content.get("sections", [])):
             prompts = section.get("image_prompts") or [section.get("image_prompt", "")]
@@ -203,6 +206,7 @@ async def generate_all(
                         agenerate_image(
                             prompt=prompt,
                             output_path=images_dir / f"scene_{i:02d}_{j:02d}.jpg",
+                            style=image_style,
                         )
                     )
         image_results = await asyncio.gather(*image_tasks)

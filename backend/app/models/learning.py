@@ -55,6 +55,9 @@ class LearningSession(Base):
     # Key concepts the user learned in this session (extracted by LLM)
     concepts_learned: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
+    # Per-session image style override
+    image_style: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
     # Error tracking
     error_message: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 

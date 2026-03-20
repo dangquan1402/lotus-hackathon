@@ -5,6 +5,11 @@ from pydantic import BaseModel, Field
 
 LearningStyle = Literal["visual", "auditory", "reading", "kinesthetic"]
 ExpertiseLevel = Literal["beginner", "intermediate", "advanced"]
+AgeGroup = Literal["primary", "secondary", "adult"]
+Goal = Literal["curiosity", "exam_prep", "homework", "career"]
+ImageStyle = Literal[
+    "cartoon", "watercolor", "photorealistic", "minimalist", "anime", "scientific", "3d_render"
+]
 
 
 class UserCreate(BaseModel):
@@ -23,6 +28,11 @@ class UserCreate(BaseModel):
         max_length=1000,
         description="Optional description of user's viewpoint or role",
     )
+    age_group: AgeGroup | None = Field(default=None, description="Age group for personalization")
+    goal: Goal | None = Field(default=None, description="Learning goal")
+    image_style: ImageStyle | None = Field(
+        default="cartoon", description="Default image style preference"
+    )
 
 
 class UserUpdate(BaseModel):
@@ -33,6 +43,9 @@ class UserUpdate(BaseModel):
     learning_style: LearningStyle | None = None
     expertise_level: ExpertiseLevel | None = None
     perspective: str | None = Field(default=None, max_length=1000)
+    age_group: AgeGroup | None = None
+    goal: Goal | None = None
+    image_style: ImageStyle | None = None
 
 
 class UserLoginRequest(BaseModel):
@@ -50,6 +63,9 @@ class UserResponse(BaseModel):
     learning_style: str
     expertise_level: str
     perspective: str | None
+    age_group: str | None
+    goal: str | None
+    image_style: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -1,6 +1,16 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type Session, type ContentMode } from '../api/client';
+import { api, type Session, type ContentMode, type ImageStyle } from '../api/client';
+
+const IMAGE_STYLE_PILLS: { value: ImageStyle; label: string }[] = [
+  { value: 'cartoon', label: 'Cartoon' },
+  { value: 'watercolor', label: 'Watercolor' },
+  { value: 'photorealistic', label: 'Photo' },
+  { value: 'minimalist', label: 'Minimal' },
+  { value: 'anime', label: 'Anime' },
+  { value: 'scientific', label: 'Science' },
+  { value: '3d_render', label: '3D' },
+];
 
 const LOADING_STEPS = [
   { label: 'Searching the web…', duration: 3000 },
@@ -19,10 +29,21 @@ export default function TopicExplore() {
   const userName = localStorage.getItem('lotus_user_name') ?? 'Learner';
   const userId = parseInt(localStorage.getItem('lotus_user_id') ?? '0', 10);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [imageStyle, setImageStyle] = useState<ImageStyle>(
+    (localStorage.getItem('lotus_image_style') as ImageStyle | null) ?? 'cartoon'
+  );
 
   useEffect(() => {
     if (userId) {
       api.listSessions(userId).then(setSessions).catch(() => {});
+      api.getUser(userId).then((user) => {
+        if (user.image_style) {
+          const stored = localStorage.getItem('lotus_image_style');
+          if (!stored) {
+            setImageStyle(user.image_style as ImageStyle);
+          }
+        }
+      }).catch(() => {});
     }
   }, [userId]);
 
@@ -51,7 +72,8 @@ export default function TopicExplore() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.exploreTopic({ user_id: userId, topic: topic.trim(), mode });
+      localStorage.setItem('lotus_image_style', imageStyle);
+      const result = await api.exploreTopic({ user_id: userId, topic: topic.trim(), mode, image_style: imageStyle });
       navigate(`/learn/${result.session_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to explore topic. Please try again.');
@@ -106,6 +128,8 @@ export default function TopicExplore() {
               setTopic={setTopic}
               mode={mode}
               setMode={setMode}
+              imageStyle={imageStyle}
+              setImageStyle={setImageStyle}
               onSubmit={handleSubmit}
               error={error}
               userName={userName}
@@ -125,6 +149,8 @@ function ExploreForm({
   setTopic,
   mode,
   setMode,
+  imageStyle,
+  setImageStyle,
   onSubmit,
   error,
   userName,
@@ -133,6 +159,8 @@ function ExploreForm({
   setTopic: (v: string) => void;
   mode: ContentMode;
   setMode: (v: ContentMode) => void;
+  imageStyle: ImageStyle;
+  setImageStyle: (v: ImageStyle) => void;
   onSubmit: (e: FormEvent) => void;
   error: string | null;
   userName: string;
@@ -180,32 +208,53 @@ function ExploreForm({
         </div>
       </form>
 
-      {/* Mode toggle */}
-      <div className="flex items-center justify-center gap-3 mt-4">
-        <span className="text-slate-500 text-sm">Video length:</span>
-        <div className="flex rounded-lg overflow-hidden border border-[#2d2d4e]">
-          <button
-            type="button"
-            onClick={() => setMode('short')}
-            className={`px-4 py-1.5 text-sm font-medium transition-all ${
-              mode === 'short'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-[#0f0f1a] text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Short (1-2 min)
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('long')}
-            className={`px-4 py-1.5 text-sm font-medium transition-all ${
-              mode === 'long'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-[#0f0f1a] text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Long (5-8 min)
-          </button>
+      {/* Mode toggle + Image style selector */}
+      <div className="flex flex-col items-center gap-3 mt-4">
+        <div className="flex items-center justify-center gap-3">
+          <span className="text-slate-500 text-sm">Video length:</span>
+          <div className="flex rounded-lg overflow-hidden border border-[#2d2d4e]">
+            <button
+              type="button"
+              onClick={() => setMode('short')}
+              className={`px-4 py-1.5 text-sm font-medium transition-all ${
+                mode === 'short'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-[#0f0f1a] text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Short (1-2 min)
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('long')}
+              className={`px-4 py-1.5 text-sm font-medium transition-all ${
+                mode === 'long'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-[#0f0f1a] text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Long (5-8 min)
+            </button>
+          </div>
+        </div>
+
+        {/* Image style pills */}
+        <div className="flex items-center justify-center flex-wrap gap-2">
+          <span className="text-slate-500 text-sm shrink-0">Visual style:</span>
+          {IMAGE_STYLE_PILLS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setImageStyle(opt.value)}
+              className={`px-3 py-1 text-xs font-medium rounded-full border transition-all ${
+                imageStyle === opt.value
+                  ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
+                  : 'bg-[#0f0f1a] border-[#2d2d4e] text-slate-400 hover:border-slate-500 hover:text-slate-200'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 

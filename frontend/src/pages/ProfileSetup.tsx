@@ -1,12 +1,15 @@
 import { useState, type KeyboardEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type LearningStyle, type ExpertiseLevel } from '../api/client';
+import { api, type LearningStyle, type ExpertiseLevel, type AgeGroup, type Goal, type ImageStyle } from '../api/client';
 
 interface FormState {
   name: string;
   interests: string[];
   learning_style: LearningStyle;
   expertise_level: ExpertiseLevel;
+  age_group: AgeGroup;
+  goal: Goal;
+  image_style: ImageStyle;
   perspective: string;
 }
 
@@ -23,6 +26,29 @@ const EXPERTISE_OPTIONS: { value: ExpertiseLevel; label: string; desc: string }[
   { value: 'advanced', label: 'Advanced', desc: 'Deep expertise' },
 ];
 
+const AGE_GROUP_OPTIONS: { value: AgeGroup; label: string; desc: string }[] = [
+  { value: 'primary', label: 'Primary', desc: 'Ages 6–11' },
+  { value: 'secondary', label: 'Secondary', desc: 'Ages 12–17' },
+  { value: 'adult', label: 'Adult', desc: 'Ages 18+' },
+];
+
+const GOAL_OPTIONS: { value: Goal; label: string; icon: string; desc: string }[] = [
+  { value: 'curiosity', label: 'Curiosity', icon: '🔍', desc: 'Learning for fun' },
+  { value: 'exam_prep', label: 'Exam Prep', icon: '📝', desc: 'Preparing for tests' },
+  { value: 'homework', label: 'Homework', icon: '📚', desc: 'Need help with assignments' },
+  { value: 'career', label: 'Career', icon: '💼', desc: 'Professional development' },
+];
+
+const IMAGE_STYLE_OPTIONS: { value: ImageStyle; label: string; icon: string }[] = [
+  { value: 'cartoon', label: 'Cartoon', icon: '🎨' },
+  { value: 'watercolor', label: 'Watercolor', icon: '🖌️' },
+  { value: 'photorealistic', label: 'Photorealistic', icon: '📷' },
+  { value: 'minimalist', label: 'Minimalist', icon: '✏️' },
+  { value: 'anime', label: 'Anime', icon: '🌸' },
+  { value: 'scientific', label: 'Scientific', icon: '🔬' },
+  { value: '3d_render', label: '3D Render', icon: '💎' },
+];
+
 export default function ProfileSetup() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'new' | 'login'>('new');
@@ -31,6 +57,9 @@ export default function ProfileSetup() {
     interests: [],
     learning_style: 'visual',
     expertise_level: 'beginner',
+    age_group: 'secondary',
+    goal: 'curiosity',
+    image_style: 'cartoon',
     perspective: '',
   });
   const [tagInput, setTagInput] = useState('');
@@ -302,6 +331,91 @@ export default function ProfileSetup() {
                       {opt.label}
                     </span>
                     <span className="text-xs text-slate-500 mt-1">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Age Group */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">
+                Age Group
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {AGE_GROUP_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, age_group: opt.value }))}
+                    className={`flex flex-col p-4 rounded-xl border transition-all cursor-pointer text-left ${
+                      form.age_group === opt.value
+                        ? 'bg-indigo-500/20 border-indigo-500'
+                        : 'bg-[#0f0f1a] border-[#2d2d4e] hover:border-slate-500'
+                    }`}
+                  >
+                    <span
+                      className={`text-sm font-semibold ${
+                        form.age_group === opt.value ? 'text-indigo-300' : 'text-slate-300'
+                      }`}
+                    >
+                      {opt.label}
+                    </span>
+                    <span className="text-xs text-slate-500 mt-1">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Learning Goal */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">
+                What's your goal?
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {GOAL_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, goal: opt.value }))}
+                    className={`flex flex-col p-4 rounded-xl border transition-all cursor-pointer text-left ${
+                      form.goal === opt.value
+                        ? 'bg-indigo-500/20 border-indigo-500'
+                        : 'bg-[#0f0f1a] border-[#2d2d4e] hover:border-slate-500'
+                    }`}
+                  >
+                    <span className="text-xl mb-1">{opt.icon}</span>
+                    <span
+                      className={`text-sm font-semibold ${
+                        form.goal === opt.value ? 'text-indigo-300' : 'text-slate-300'
+                      }`}
+                    >
+                      {opt.label}
+                    </span>
+                    <span className="text-xs text-slate-500 mt-0.5">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Visual Style */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">
+                Preferred Visual Style
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {IMAGE_STYLE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, image_style: opt.value }))}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer text-sm ${
+                      form.image_style === opt.value
+                        ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
+                        : 'bg-[#0f0f1a] border-[#2d2d4e] text-slate-400 hover:border-slate-500'
+                    }`}
+                  >
+                    <span>{opt.icon}</span>
+                    <span className="font-medium">{opt.label}</span>
                   </button>
                 ))}
               </div>

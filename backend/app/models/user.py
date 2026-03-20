@@ -31,6 +31,21 @@ class User(Base):
         nullable=True,
         comment="Optional text describing the user's viewpoint or role",
     )
+    age_group: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="One of: primary (6-11), secondary (12-17), adult (18+)",
+    )
+    goal: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="One of: curiosity, exam_prep, homework, career",
+    )
+    image_style: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Default visual style preference, e.g. cartoon, watercolor, photorealistic",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -28,6 +28,8 @@ def _build_system_prompt(
     interests: list[str],
     mode: str = "short",
     learning_history: list[dict] | None = None,
+    age_group: str | None = None,
+    goal: str | None = None,
 ) -> str:
     """Build the system prompt tailored to the user's profile."""
     style_guidance = {
@@ -64,6 +66,40 @@ def _build_system_prompt(
     ]
     if perspective:
         parts.append(f"User perspective/role: {perspective}. Tailor examples to this context.")
+    if age_group:
+        age_guidance = {
+            "primary": (
+                "The user is a primary school student (ages 6-11). Use very simple language,"
+                " fun analogies, and age-appropriate examples."
+            ),
+            "secondary": (
+                "The user is a secondary school student (ages 12-17). Use clear language"
+                " with moderate complexity, relatable examples."
+            ),
+            "adult": (
+                "The user is an adult learner. Use professional language"
+                " and real-world applications."
+            ),
+        }
+        parts.append(age_guidance.get(age_group, ""))
+    if goal:
+        goal_guidance = {
+            "curiosity": (
+                "The user is learning for fun and curiosity. Make it engaging and interesting."
+            ),
+            "exam_prep": (
+                "The user is preparing for an exam. Focus on key concepts, definitions,"
+                " and testable knowledge."
+            ),
+            "homework": (
+                "The user needs help with homework. Be clear, structured, and directly helpful."
+            ),
+            "career": (
+                "The user is learning for career development. Include practical applications"
+                " and industry context."
+            ),
+        }
+        parts.append(goal_guidance.get(goal, ""))
     if interests:
         interests_str = ", ".join(interests)
         parts.append(f"User interests: {interests_str}. Connect content to these when relevant.")
@@ -158,6 +194,8 @@ async def asynthesize_content(
     interests: list[str],
     mode: str = "short",
     learning_history: list[dict] | None = None,
+    age_group: str | None = None,
+    goal: str | None = None,
 ) -> GeneratedContent:
     """Synthesize search results into structured learning content via FuseAPI LLM.
 
@@ -178,7 +216,14 @@ async def asynthesize_content(
     """
     endpoint, api_key = _load_fuseapi_config()
     system_prompt = _build_system_prompt(
-        learning_style, expertise_level, perspective, interests, mode, learning_history
+        learning_style,
+        expertise_level,
+        perspective,
+        interests,
+        mode,
+        learning_history,
+        age_group,
+        goal,
     )
     user_prompt = _build_user_prompt(topic, search_results)
 

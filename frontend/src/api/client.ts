@@ -4,6 +4,9 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export type LearningStyle = 'visual' | 'auditory' | 'reading' | 'kinesthetic';
 export type ExpertiseLevel = 'beginner' | 'intermediate' | 'advanced';
+export type AgeGroup = 'primary' | 'secondary' | 'adult';
+export type Goal = 'curiosity' | 'exam_prep' | 'homework' | 'career';
+export type ImageStyle = 'cartoon' | 'watercolor' | 'photorealistic' | 'minimalist' | 'anime' | 'scientific' | '3d_render';
 
 export interface CreateUserRequest {
   name: string;
@@ -11,6 +14,9 @@ export interface CreateUserRequest {
   learning_style: LearningStyle;
   expertise_level: ExpertiseLevel;
   perspective: string;
+  age_group?: AgeGroup;
+  goal?: Goal;
+  image_style?: ImageStyle;
 }
 
 export interface User {
@@ -20,6 +26,9 @@ export interface User {
   learning_style: LearningStyle;
   expertise_level: ExpertiseLevel;
   perspective: string;
+  age_group?: string;
+  goal?: string;
+  image_style?: string;
   created_at: string;
 }
 
@@ -29,6 +38,7 @@ export interface ExploreTopicRequest {
   user_id: number;
   topic: string;
   mode?: ContentMode;
+  image_style?: ImageStyle;
 }
 
 export interface ExploreTopicResponse {

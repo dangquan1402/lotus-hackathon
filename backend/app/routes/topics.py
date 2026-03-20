@@ -46,11 +46,15 @@ async def explore_topic(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+    # Resolve image style: per-lesson override > user profile > fallback
+    resolved_image_style = payload.image_style or user.image_style or "cartoon"
+
     # Create session in searching state
     session = LearningSession(
         user_id=user.id,
         topic=payload.topic,
         status="searching",
+        image_style=resolved_image_style,
     )
     db.add(session)
     await db.flush()
@@ -91,6 +95,8 @@ async def explore_topic(
             interests=user.interests or [],
             mode=payload.mode,
             learning_history=learning_history if learning_history else None,
+            age_group=user.age_group,
+            goal=user.goal,
         )
 
         session.generated_content = generated.model_dump()
@@ -139,6 +145,7 @@ async def list_sessions(
             LearningSession.user_id,
             LearningSession.topic,
             LearningSession.status,
+            LearningSession.image_style,
             LearningSession.video_path,
             LearningSession.slides_path,
             LearningSession.created_at,

@@ -45,6 +45,7 @@ class TopicExploreRequest(BaseModel):
     mode: str = Field(
         default="short", description="Content mode: 'short' (1-2 min) or 'long' (5-8 min)"
     )
+    image_style: str | None = Field(default=None, description="Per-lesson image style override")
 
 
 class TopicExploreResponse(BaseModel):
@@ -114,6 +115,7 @@ class SessionSummary(BaseModel):
     user_id: int
     topic: str
     status: str
+    image_style: str | None = None
     video_path: str | None = None
     slides_path: str | None = None
     created_at: datetime
@@ -129,6 +131,7 @@ class SessionResponse(BaseModel):
     user_id: int
     topic: str
     status: str
+    image_style: str | None = None
     generated_content: GeneratedContent | None = None
     image_paths: list[str] | None = None
     video_path: str | None = None

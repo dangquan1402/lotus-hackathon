@@ -8,6 +8,18 @@ import httpx
 CONFIG_PATH = Path.home() / ".fuseapi" / "config.json"
 MODEL = "gemini-3.1-flash-image"
 
+STYLE_PREFIXES = {
+    "cartoon": "Colorful cartoon illustration style, bold outlines, friendly and playful. ",
+    "watercolor": "Soft watercolor painting style, gentle colors, artistic and dreamy. ",
+    "photorealistic": "Photorealistic high-quality photograph, detailed and lifelike. ",
+    "minimalist": (
+        "Clean minimalist vector illustration, simple shapes, flat design, limited color palette. "
+    ),
+    "anime": "Anime/manga art style, vibrant colors, expressive characters. ",
+    "scientific": "Scientific textbook diagram style, labeled, clear and educational. ",
+    "3d_render": "3D rendered illustration, smooth lighting, modern CGI quality. ",
+}
+
 
 def load_fuseapi_config() -> tuple[str, str]:
     """Load FuseAPI endpoint and API key from ~/.fuseapi/config.json.
@@ -22,13 +34,16 @@ def load_fuseapi_config() -> tuple[str, str]:
     return endpoint, profile["apiKey"]
 
 
-async def agenerate_image(prompt: str, output_path: Path, size_hint: str = "1280x720") -> Path:
+async def agenerate_image(
+    prompt: str, output_path: Path, size_hint: str = "1280x720", style: str | None = None
+) -> Path:
     """Generate an image from a text prompt using FuseAPI and save to disk.
 
     Args:
         prompt: Detailed visual description for the image.
         output_path: File path where the generated image will be saved.
         size_hint: Desired image dimensions as "WxH" string.
+        style: Optional style name to prepend style instructions to the prompt.
 
     Returns:
         The output_path after the image has been written.
@@ -37,6 +52,7 @@ async def agenerate_image(prompt: str, output_path: Path, size_hint: str = "1280
         httpx.HTTPError: On API communication failure.
         ValueError: If the response contains no images.
     """
+    full_prompt = STYLE_PREFIXES.get(style, "") + prompt if style else prompt
     endpoint, api_key = load_fuseapi_config()
     async with httpx.AsyncClient(timeout=120) as client:
         response = await client.post(
@@ -48,7 +64,8 @@ async def agenerate_image(prompt: str, output_path: Path, size_hint: str = "1280
                     {
                         "role": "user",
                         "content": (
-                            f"{prompt} Image dimensions: {size_hint} pixels, landscape orientation."
+                            f"{full_prompt} Image dimensions: {size_hint} pixels,"
+                            " landscape orientation."
                         ),
                     }
                 ],

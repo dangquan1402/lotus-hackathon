@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../api/client';
+import { api, type Session, type ContentMode } from '../api/client';
 
 const LOADING_STEPS = [
   { label: 'Searching the web…', duration: 3000 },
@@ -11,12 +11,20 @@ const LOADING_STEPS = [
 export default function TopicExplore() {
   const navigate = useNavigate();
   const [topic, setTopic] = useState('');
+  const [mode, setMode] = useState<ContentMode>('short');
   const [loading, setLoading] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const userName = localStorage.getItem('lotus_user_name') ?? 'Learner';
   const userId = parseInt(localStorage.getItem('lotus_user_id') ?? '0', 10);
+  const [sessions, setSessions] = useState<Session[]>([]);
+
+  useEffect(() => {
+    if (userId) {
+      api.listSessions(userId).then(setSessions).catch(() => {});
+    }
+  }, [userId]);
 
   // Cycle through loading step messages
   useEffect(() => {
@@ -43,7 +51,7 @@ export default function TopicExplore() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.exploreTopic({ user_id: userId, topic: topic.trim() });
+      const result = await api.exploreTopic({ user_id: userId, topic: topic.trim(), mode });
       navigate(`/learn/${result.session_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to explore topic. Please try again.');
@@ -92,13 +100,20 @@ export default function TopicExplore() {
         {loading ? (
           <LoadingState stepIndex={stepIndex} topic={topic} />
         ) : (
-          <ExploreForm
-            topic={topic}
-            setTopic={setTopic}
-            onSubmit={handleSubmit}
-            error={error}
-            userName={userName}
-          />
+          <>
+            <ExploreForm
+              topic={topic}
+              setTopic={setTopic}
+              mode={mode}
+              setMode={setMode}
+              onSubmit={handleSubmit}
+              error={error}
+              userName={userName}
+            />
+            {sessions.length > 0 && (
+              <SessionHistory sessions={sessions} />
+            )}
+          </>
         )}
       </main>
     </div>
@@ -108,12 +123,16 @@ export default function TopicExplore() {
 function ExploreForm({
   topic,
   setTopic,
+  mode,
+  setMode,
   onSubmit,
   error,
   userName,
 }: {
   topic: string;
   setTopic: (v: string) => void;
+  mode: ContentMode;
+  setMode: (v: ContentMode) => void;
   onSubmit: (e: FormEvent) => void;
   error: string | null;
   userName: string;
@@ -161,6 +180,35 @@ function ExploreForm({
         </div>
       </form>
 
+      {/* Mode toggle */}
+      <div className="flex items-center justify-center gap-3 mt-4">
+        <span className="text-slate-500 text-sm">Video length:</span>
+        <div className="flex rounded-lg overflow-hidden border border-[#2d2d4e]">
+          <button
+            type="button"
+            onClick={() => setMode('short')}
+            className={`px-4 py-1.5 text-sm font-medium transition-all ${
+              mode === 'short'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-[#0f0f1a] text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Short (1-2 min)
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('long')}
+            className={`px-4 py-1.5 text-sm font-medium transition-all ${
+              mode === 'long'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-[#0f0f1a] text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Long (5-8 min)
+          </button>
+        </div>
+      </div>
+
       {error && (
         <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
           {error}
@@ -181,6 +229,48 @@ function ExploreForm({
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SessionHistory({ sessions }: { sessions: Session[] }) {
+  const navigate = useNavigate();
+
+  const statusLabel: Record<string, { text: string; color: string }> = {
+    complete: { text: 'Content Ready', color: 'text-emerald-400' },
+    video_done: { text: 'Video Ready', color: 'text-emerald-400' },
+    error: { text: 'Error', color: 'text-red-400' },
+    searching: { text: 'Searching…', color: 'text-yellow-400' },
+    generating: { text: 'Generating…', color: 'text-yellow-400' },
+  };
+
+  return (
+    <div className="w-full max-w-2xl mt-12">
+      <h3 className="text-slate-400 text-sm font-medium mb-4">Your recent sessions</h3>
+      <div className="space-y-2">
+        {sessions.map((s) => {
+          const st = statusLabel[s.status] ?? { text: s.status, color: 'text-slate-400' };
+          return (
+            <button
+              key={s.id}
+              onClick={() => navigate(`/learn/${s.id}`)}
+              className="w-full flex items-center justify-between bg-[#1a1a2e] hover:bg-[#2d2d4e] border border-[#2d2d4e] hover:border-indigo-500/30 rounded-xl px-5 py-3.5 transition-all group text-left"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium truncate group-hover:text-indigo-300 transition-colors">
+                  {s.topic}
+                </p>
+                <p className="text-slate-500 text-xs mt-1">
+                  {new Date(s.created_at).toLocaleDateString(undefined, {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                  })}
+                </p>
+              </div>
+              <span className={`text-xs font-medium ${st.color} ml-4 shrink-0`}>{st.text}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

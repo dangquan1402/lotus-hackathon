@@ -4,18 +4,22 @@
   "scripts": {
     "studio": "npx remotion studio src/index.ts",
     "render": "npx remotion render src/index.ts LessonVideo out/lesson.mp4",
-    "preview": "npx remotion preview src/index.ts"
+    "preview": "npx remotion preview src/index.ts",
+    "server": "npx tsx src/server.ts"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.431",
     "@remotion/media": "^4.0.431",
     "@remotion/transitions": "^4.0.431",
+    "express": "^5.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "remotion": "^4.0.431"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/react": "^19.2.14",
+    "tsx": "^4.19.4",
     "typescript": "^5.9.3"
   }
 }

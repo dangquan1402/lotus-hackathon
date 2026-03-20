@@ -23,9 +23,12 @@ export interface User {
   created_at: string;
 }
 
+export type ContentMode = 'short' | 'long';
+
 export interface ExploreTopicRequest {
   user_id: number;
   topic: string;
+  mode?: ContentMode;
 }
 
 export interface ExploreTopicResponse {
@@ -34,16 +37,24 @@ export interface ExploreTopicResponse {
   status: string;
 }
 
-export type SessionStatus = 'pending' | 'processing' | 'ready' | 'error';
-
 export interface Session {
   id: number;
   user_id: number;
   topic: string;
-  status: SessionStatus;
-  content_summary?: string;
-  video_url?: string;
-  slides_url?: string;
+  status: string;
+  search_results?: unknown[];
+  generated_content?: {
+    title: string;
+    overview: string;
+    sections: { title: string; narration_text: string; image_prompt: string }[];
+    quiz_questions: { question: string; options: string[]; correct_index: number; explanation: string }[];
+  };
+  image_paths?: string[];
+  audio_path?: string;
+  alignment?: Record<string, unknown>;
+  video_path?: string;
+  slides_path?: string;
+  error_message?: string;
   created_at: string;
   updated_at: string;
 }
@@ -129,10 +140,33 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  getSession: (id: number) => request<Session>(`/api/sessions/${id}`),
+  getSession: (id: number) => request<Session>(`/api/topics/sessions/${id}`),
+
+  listSessions: (userId: number) => request<Session[]>(`/api/topics/sessions?user_id=${userId}`),
+
+  generateImages: (sessionId: number) =>
+    request<{ session_id: number; status: string; image_paths: string[]; message: string }>('/api/video/generate-images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    }),
+
+  generateVoice: (sessionId: number) =>
+    request<{ session_id: number; status: string; audio_path: string; message: string }>('/api/video/generate-voice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    }),
 
   generateVideo: (sessionId: number) =>
-    request<GenerateVideoResponse>('/api/video/generate', {
+    request<GenerateVideoResponse>('/api/video/generate-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    }),
+
+  generateAll: (sessionId: number) =>
+    request<GenerateVideoResponse>('/api/video/generate-all', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: sessionId }),

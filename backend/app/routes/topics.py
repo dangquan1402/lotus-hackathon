@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.learning import LearningSession
 from app.models.user import User
-from app.schemas.learning import TopicExploreRequest, TopicExploreResponse
+from app.schemas.learning import (
+    SessionResponse,
+    SessionSummary,
+    TopicExploreRequest,
+    TopicExploreResponse,
+)
 from app.services.content import asynthesize_content
 from app.services.search import search_topic
 
@@ -53,7 +58,9 @@ async def explore_topic(
 
     try:
         # Search web
-        search_results = await search_topic(payload.topic, user.interests or [])
+        search_results = await search_topic(
+            payload.topic, user.interests or [], scrape=(payload.mode == "long")
+        )
         session.search_results = search_results
         session.status = "generating"
         await db.flush()
@@ -66,6 +73,7 @@ async def explore_topic(
             expertise_level=user.expertise_level,
             perspective=user.perspective,
             interests=user.interests or [],
+            mode=payload.mode,
         )
 
         session.generated_content = generated.model_dump()
@@ -91,3 +99,40 @@ async def explore_topic(
         generated_content=generated,
         created_at=session.created_at,
     )
+
+
+@router.get("/sessions", response_model=list[SessionSummary])
+async def list_sessions(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> list[SessionSummary]:
+    """List all sessions for a user, newest first. Returns lightweight summaries."""
+    result = await db.execute(
+        select(
+            LearningSession.id,
+            LearningSession.user_id,
+            LearningSession.topic,
+            LearningSession.status,
+            LearningSession.video_path,
+            LearningSession.slides_path,
+            LearningSession.created_at,
+            LearningSession.updated_at,
+        )
+        .where(LearningSession.user_id == user_id)
+        .order_by(LearningSession.created_at.desc())
+    )
+    rows = result.all()
+    return [SessionSummary.model_validate(dict(r._mapping)) for r in rows]
+
+
+@router.get("/sessions/{session_id}", response_model=SessionResponse)
+async def get_session(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    """Get full session state including all pipeline artifacts."""
+    result = await db.execute(select(LearningSession).where(LearningSession.id == session_id))
+    session = result.scalar_one_or_none()
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    return SessionResponse.model_validate(session)

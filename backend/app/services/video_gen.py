@@ -1,9 +1,9 @@
-import asyncio
-import json
-import shutil
+import os
 from pathlib import Path
 
-REMOTION_DIR = Path(__file__).parent.parent.parent.parent / "remotion"
+import httpx
+
+REMOTION_API = os.environ.get("REMOTION_API_URL", "http://localhost:3100")
 
 
 async def agenerate_video(
@@ -12,78 +12,90 @@ async def agenerate_video(
     images_dir: Path,
     audio_path: Path,
     output_dir: Path,
+    alignment: dict | None = None,
 ) -> Path:
-    """Generate a video using Remotion by orchestrating scenes and audio.
-
-    Copies images and audio into the Remotion public directory, writes
-    story-scenes.json, then invokes the Remotion CLI to render the video.
+    """Generate a video by calling the Remotion render service.
 
     Args:
-        session_id: Unique session ID used in the output filename.
+        session_id: Unique session ID.
         content: GeneratedContent dict with title and sections.
-        images_dir: Directory containing scene images named scene_XX.jpg.
-        audio_path: Path to the narration WAV file.
-        output_dir: Directory where the rendered MP4 will be saved.
+        images_dir: Directory containing scene images (unused — service reads from shared volume).
+        audio_path: Path to narration WAV (unused — service reads from shared volume).
+        output_dir: Directory for rendered MP4 (unused — service writes to shared volume).
+        alignment: Optional word-level alignment data for captions.
 
     Returns:
         Path to the rendered MP4 file.
-
-    Raises:
-        RuntimeError: If the Remotion render process exits with a non-zero code.
     """
-    public_dir = REMOTION_DIR / "public"
-    public_dir.mkdir(parents=True, exist_ok=True)
+    # Build scenes from content sections and alignment data
+    sections = content.get("sections", [])
+    words = (alignment or {}).get("words", [])
 
-    # Copy images to remotion/public/
-    for img in images_dir.glob("*.jpg"):
-        shutil.copy(img, public_dir / img.name)
-    shutil.copy(audio_path, public_dir / "narration.wav")
-
-    # Build scenes JSON for Remotion
+    # Calculate per-section timing from alignment
     scenes = []
-    for i, section in enumerate(content.get("sections", [])):
+    word_idx = 0
+    for i, section in enumerate(sections):
+        section_word_count = len(section["narration_text"].split())
+
+        if words and word_idx < len(words):
+            start_s = words[word_idx]["start"]
+            end_idx = min(word_idx + section_word_count, len(words)) - 1
+            end_s = words[end_idx]["end"]
+            word_idx += section_word_count
+        else:
+            # Fallback: evenly distribute
+            duration_per_word = 0.4
+            start_s = i * section_word_count * duration_per_word
+            end_s = start_s + section_word_count * duration_per_word
+
         scenes.append(
             {
                 "index": i,
-                "duration_s": section.get("duration_s", 8),
-                "timestamp": f"{i * 8}s",
+                "duration_s": round(end_s - start_s, 2),
                 "caption": section["narration_text"],
                 "image_prompt": section["image_prompt"],
-                "audio_start_s": i * 8,
-                "audio_end_s": (i + 1) * 8,
+                "audio_start_s": round(start_s, 2),
+                "audio_end_s": round(end_s, 2),
             }
         )
 
-    story_data = {
-        "title": content["title"],
-        "scenes": scenes,
-        "phrases": [],
-        "render_config": {
-            "fps": 30,
-            "width": 1920,
-            "height": 1080,
-            "layout": "overlay",
-        },
+    # Build phrases from alignment words for captions
+    phrases = []
+    if words:
+        # Group words into phrases (~8 words each)
+        phrase_size = 8
+        for pi in range(0, len(words), phrase_size):
+            chunk = words[pi : pi + phrase_size]
+            phrases.append(
+                {
+                    "index": pi // phrase_size,
+                    "start_s": chunk[0]["start"],
+                    "end_s": chunk[-1]["end"],
+                    "text": " ".join(w["word"] for w in chunk),
+                }
+            )
+
+    render_config = {
+        "fps": 30,
+        "width": 1920,
+        "height": 1080,
     }
-    (public_dir / "story-scenes.json").write_text(json.dumps(story_data, indent=2))
 
-    output_path = output_dir / f"lesson_{session_id}.mp4"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    async with httpx.AsyncClient(timeout=600) as client:
+        resp = await client.post(
+            f"{REMOTION_API}/render",
+            json={
+                "session_id": session_id,
+                "scenes": scenes,
+                "phrases": phrases,
+                "render_config": render_config,
+            },
+        )
+        resp.raise_for_status()
+        result = resp.json()
 
-    proc = await asyncio.create_subprocess_exec(
-        "npx",
-        "remotion",
-        "render",
-        "src/index.ts",
-        "LessonVideo",
-        str(output_path),
-        cwd=str(REMOTION_DIR),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
+    if result.get("status") == "error":
+        raise RuntimeError(f"Remotion render failed: {result.get('error')}")
 
-    if proc.returncode != 0:
-        raise RuntimeError(f"Remotion render failed: {stderr.decode()}")
-
+    output_path = Path(result["video_path"])
     return output_path

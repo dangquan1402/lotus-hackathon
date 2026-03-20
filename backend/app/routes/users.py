@@ -48,7 +48,7 @@ async def login_user(payload: UserLoginRequest, db: AsyncSession = Depends(get_d
         HTTPException 404: If no user exists with that name.
     """
     result = await db.execute(select(User).where(func.lower(User.name) == payload.name.lower()))
-    user = result.scalar_one_or_none()
+    user = result.scalars().first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No user found with that name"

@@ -6,5 +6,5 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-EXPOSE 3000
-CMD ["npm", "run", "studio"]
+EXPOSE 3100
+CMD ["npx", "tsx", "src/server.ts"]

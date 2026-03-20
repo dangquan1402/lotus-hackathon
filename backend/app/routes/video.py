@@ -1,4 +1,5 @@
 import asyncio
+import traceback
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,59 +8,47 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.learning import LearningSession
-from app.schemas.learning import GenerateVideoRequest, GenerateVideoResponse
+from app.schemas.learning import (
+    GenerateImagesResponse,
+    GenerateVideoRequest,
+    GenerateVideoResponse,
+    GenerateVoiceResponse,
+    SessionIdRequest,
+)
 from app.services.image_gen import agenerate_image
 from app.services.video_gen import agenerate_video
-from app.services.voice_gen import agenerate_voice
+from app.services.voice_gen import aalign_audio, agenerate_voice
 
 router = APIRouter(prefix="/video", tags=["video"])
 
-OUTPUT_DIR = Path("output")
 
-
-@router.post("/generate", response_model=GenerateVideoResponse)
-async def generate_video(
-    payload: GenerateVideoRequest,
-    db: AsyncSession = Depends(get_db),
-) -> GenerateVideoResponse:
-    """Generate a video lesson for a completed learning session.
-
-    Generates one image per content section in parallel, synthesizes a voice
-    narration, then renders the final video via Remotion.
-
-    Args:
-        payload: Contains session_id.
-        db: Async database session.
-
-    Returns:
-        GenerateVideoResponse with video path and URL.
-
-    Raises:
-        HTTPException 404: If session does not exist.
-        HTTPException 400: If session content is not ready.
-        HTTPException 502: If any generation step fails.
-    """
-    result = await db.execute(
-        select(LearningSession).where(LearningSession.id == payload.session_id)
-    )
+async def _get_session(session_id: int, db: AsyncSession) -> LearningSession:
+    result = await db.execute(select(LearningSession).where(LearningSession.id == session_id))
     session = result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-
-    if session.status != "complete" or not session.generated_content:
+    if not session.generated_content:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Session content is not ready. Status must be 'complete'.",
+            detail="Session content is not ready.",
         )
+    return session
 
+
+@router.post("/generate-images", response_model=GenerateImagesResponse)
+async def generate_images(
+    payload: SessionIdRequest,
+    db: AsyncSession = Depends(get_db),
+) -> GenerateImagesResponse:
+    """Generate images for each content section."""
+    session = await _get_session(payload.session_id, db)
     content = session.generated_content
-    session_output_dir = OUTPUT_DIR / f"session_{session.id}"
-    images_dir = session_output_dir / "images"
-    audio_path = session_output_dir / "narration.wav"
-    video_output_dir = session_output_dir / "video"
+    images_dir = Path(session.output_dir) / "images"
 
     try:
-        # Generate images for each section in parallel
+        session.status = "images_generating"
+        await db.flush()
+
         image_tasks = [
             agenerate_image(
                 prompt=section["image_prompt"],
@@ -67,38 +56,193 @@ async def generate_video(
             )
             for i, section in enumerate(content.get("sections", []))
         ]
-        await asyncio.gather(*image_tasks)
+        image_results = await asyncio.gather(*image_tasks)
+        session.image_paths = [str(p) for p in image_results]
+        session.status = "images_done"
+        await db.flush()
 
-        # Generate combined narration from all sections
+    except Exception as exc:
+        traceback.print_exc()
+        session.status = "error"
+        session.error_message = str(exc)[:2000]
+        await db.flush()
+        raise HTTPException(status_code=502, detail=f"Image generation failed: {exc}") from exc
+
+    return GenerateImagesResponse(
+        session_id=session.id,
+        status="images_done",
+        image_paths=[str(p) for p in image_results],
+        message=f"Generated {len(image_results)} images",
+    )
+
+
+@router.post("/generate-voice", response_model=GenerateVoiceResponse)
+async def generate_voice(
+    payload: SessionIdRequest,
+    db: AsyncSession = Depends(get_db),
+) -> GenerateVoiceResponse:
+    """Generate narration audio and word-level alignment."""
+    session = await _get_session(payload.session_id, db)
+    content = session.generated_content
+    audio_path = Path(session.output_dir) / "narration.wav"
+
+    try:
+        session.status = "audio_generating"
+        await db.flush()
+
         full_narration = " ".join(
             section["narration_text"] for section in content.get("sections", [])
         )
         await agenerate_voice(full_narration, audio_path)
+        session.audio_path = str(audio_path)
+        session.status = "audio_done"
+        await db.flush()
 
-        # Render video
+        # Align audio for word-level captions
+        session.status = "aligning"
+        await db.flush()
+
+        alignment = await aalign_audio(audio_path)
+        session.alignment = alignment
+        session.status = "aligned"
+        await db.flush()
+
+    except Exception as exc:
+        traceback.print_exc()
+        session.status = "error"
+        session.error_message = str(exc)[:2000]
+        await db.flush()
+        raise HTTPException(status_code=502, detail=f"Voice generation failed: {exc}") from exc
+
+    return GenerateVoiceResponse(
+        session_id=session.id,
+        status="aligned",
+        audio_path=str(audio_path),
+        message="Voice generated and aligned",
+    )
+
+
+@router.post("/generate-video", response_model=GenerateVideoResponse)
+async def generate_video(
+    payload: GenerateVideoRequest,
+    db: AsyncSession = Depends(get_db),
+) -> GenerateVideoResponse:
+    """Render video via Remotion. Requires images and audio to be generated first."""
+    session = await _get_session(payload.session_id, db)
+
+    if not session.image_paths:
+        raise HTTPException(
+            status_code=400, detail="Images not generated. Call /generate-images first."
+        )
+    if not session.audio_path:
+        raise HTTPException(
+            status_code=400, detail="Audio not generated. Call /generate-voice first."
+        )
+
+    content = session.generated_content
+    session_dir = Path(session.output_dir)
+
+    try:
+        session.status = "video_rendering"
+        await db.flush()
+
+        video_path = await agenerate_video(
+            session_id=session.id,
+            content=content,
+            images_dir=session_dir / "images",
+            audio_path=Path(session.audio_path),
+            output_dir=session_dir / "video",
+            alignment=session.alignment,
+        )
+        session.video_path = str(video_path)
+        session.status = "video_done"
+        await db.flush()
+
+    except Exception as exc:
+        traceback.print_exc()
+        session.status = "error"
+        session.error_message = str(exc)[:2000]
+        await db.flush()
+        raise HTTPException(status_code=502, detail=f"Video render failed: {exc}") from exc
+
+    return GenerateVideoResponse(
+        session_id=session.id,
+        status="video_done",
+        video_path=str(video_path),
+        video_url=f"/api/files/session_{session.id}/video/lesson_{session.id}.mp4",
+        message="Video rendered successfully",
+    )
+
+
+@router.post("/generate-all", response_model=GenerateVideoResponse)
+async def generate_all(
+    payload: GenerateVideoRequest,
+    db: AsyncSession = Depends(get_db),
+) -> GenerateVideoResponse:
+    """Run full pipeline: images → voice → align → render. Convenience endpoint."""
+    session = await _get_session(payload.session_id, db)
+    content = session.generated_content
+    session_dir = Path(session.output_dir)
+    images_dir = session_dir / "images"
+    audio_path = session_dir / "narration.wav"
+
+    try:
+        # Images
+        session.status = "images_generating"
+        await db.flush()
+        image_tasks = [
+            agenerate_image(
+                prompt=section["image_prompt"],
+                output_path=images_dir / f"scene_{str(i).zfill(2)}.jpg",
+            )
+            for i, section in enumerate(content.get("sections", []))
+        ]
+        image_results = await asyncio.gather(*image_tasks)
+        session.image_paths = [str(p) for p in image_results]
+        session.status = "images_done"
+        await db.flush()
+
+        # Voice + alignment
+        session.status = "audio_generating"
+        await db.flush()
+        full_narration = " ".join(
+            section["narration_text"] for section in content.get("sections", [])
+        )
+        await agenerate_voice(full_narration, audio_path)
+        session.audio_path = str(audio_path)
+        session.status = "audio_done"
+        await db.flush()
+
+        alignment = await aalign_audio(audio_path)
+        session.alignment = alignment
+        await db.flush()
+
+        # Render
+        session.status = "video_rendering"
+        await db.flush()
         video_path = await agenerate_video(
             session_id=session.id,
             content=content,
             images_dir=images_dir,
             audio_path=audio_path,
-            output_dir=video_output_dir,
+            output_dir=session_dir / "video",
+            alignment=alignment,
         )
-
-        relative_path = str(video_path)
-        session.video_path = relative_path
+        session.video_path = str(video_path)
+        session.status = "video_done"
         await db.flush()
 
     except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Video generation failed: {exc}",
-        ) from exc
+        traceback.print_exc()
+        session.status = "error"
+        session.error_message = str(exc)[:2000]
+        await db.flush()
+        raise HTTPException(status_code=502, detail=f"Pipeline failed: {exc}") from exc
 
-    video_filename = video_path.name
     return GenerateVideoResponse(
         session_id=session.id,
-        status="complete",
-        video_path=relative_path,
-        video_url=f"/api/files/session_{session.id}/video/{video_filename}",
-        message="Video generated successfully",
+        status="video_done",
+        video_path=str(video_path),
+        video_url=f"/api/files/session_{session.id}/video/lesson_{session.id}.mp4",
+        message="Full pipeline complete",
     )

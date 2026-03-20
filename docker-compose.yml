@@ -1,15 +1,33 @@
 services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=lotus
+      - POSTGRES_PASSWORD=lotus
+      - POSTGRES_DB=lotus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lotus"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   backend:
     build: ./backend
     ports:
       - "8989:8000"
     volumes:
       - ./backend:/app
-      - ./output:/app/output
-      - backend-data:/app/data
+      - shared-output:/app/output
       - ${HOME}/.fuseapi:/root/.fuseapi:ro
+      - /Users/quandang/Desktop/dquan/products/video-gen/grok-video/voice-clone/outputs:/voice-outputs:ro
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///./data/lotus.db
+      - DATABASE_URL=postgresql+asyncpg://lotus:lotus@db:5432/lotus
+      - VOICE_API_URL=http://host.docker.internal:8882
+      - REMOTION_API_URL=http://remotion:3100
     env_file:
       - .env
     command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -17,7 +35,12 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      remotion:
+        condition: service_started
 
   frontend:
     build:
@@ -37,12 +60,13 @@ services:
   remotion:
     build: ./remotion
     ports:
-      - "3100:3000"
+      - "3100:3100"
     volumes:
-      - ./remotion:/app
-      - ./output:/app/out
-    profiles:
-      - full
+      - ./remotion/src:/app/src
+      - shared-output:/shared
+    environment:
+      - PORT=3100
 
 volumes:
-  backend-data:
+  pgdata:
+  shared-output:

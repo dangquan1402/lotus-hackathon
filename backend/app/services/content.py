@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from pathlib import Path
@@ -7,7 +8,7 @@ import httpx
 from app.schemas.learning import GeneratedContent
 
 CONFIG_PATH = Path.home() / ".fuseapi" / "config.json"
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-3-flash-preview"
 
 
 def _load_fuseapi_config() -> tuple[str, str]:
@@ -25,6 +26,7 @@ def _build_system_prompt(
     expertise_level: str,
     perspective: str | None,
     interests: list[str],
+    mode: str = "short",
 ) -> str:
     """Build the system prompt tailored to the user's profile."""
     style_guidance = {
@@ -65,7 +67,27 @@ def _build_system_prompt(
         interests_str = ", ".join(interests)
         parts.append(f"User interests: {interests_str}. Connect content to these when relevant.")
 
+    if mode == "short":
+        length_instruction = (
+            "\nIMPORTANT: This is for a SHORT video (60-90 seconds). Keep it punchy and concise."
+        )
+        section_instruction = (
+            "Generate EXACTLY 4 sections (total ~200 words narration) and 3 quiz questions. "
+            "Each section narration must be 40-60 words — concise, no filler."
+        )
+        narration_hint = "40-60 words, 15-20 seconds spoken"
+    else:
+        length_instruction = (
+            "\nThis is for a DETAILED lesson video (5-8 minutes). Be thorough and educational."
+        )
+        section_instruction = (
+            "Generate 5-6 sections (total ~1000-1500 words narration) and 5 quiz questions. "
+            "Each section narration should be 200-300 words — comprehensive and well-explained."
+        )
+        narration_hint = "200-300 words"
+
     parts.append(
+        f"{length_instruction}"
         "\nYou MUST respond with valid JSON only — no markdown fences, no extra text. "
         "The JSON must match this exact structure:\n"
         "{\n"
@@ -74,7 +96,7 @@ def _build_system_prompt(
         '  "sections": [\n'
         "    {\n"
         '      "title": "string",\n'
-        '      "narration_text": "string (200-400 words)",\n'
+        f'      "narration_text": "string ({narration_hint})",\n'
         '      "image_prompt": "string (detailed visual description for image generation)"\n'
         "    }\n"
         "  ],\n"
@@ -87,7 +109,7 @@ def _build_system_prompt(
         "    }\n"
         "  ]\n"
         "}\n"
-        "Generate 4-6 sections and 5 quiz questions."
+        f"{section_instruction}"
     )
     return "\n".join(parts)
 
@@ -111,6 +133,7 @@ async def asynthesize_content(
     expertise_level: str,
     perspective: str | None,
     interests: list[str],
+    mode: str = "short",
 ) -> GeneratedContent:
     """Synthesize search results into structured learning content via FuseAPI LLM.
 
@@ -130,23 +153,31 @@ async def asynthesize_content(
         ValueError: If the LLM returns malformed JSON.
     """
     endpoint, api_key = _load_fuseapi_config()
-    system_prompt = _build_system_prompt(learning_style, expertise_level, perspective, interests)
+    system_prompt = _build_system_prompt(
+        learning_style, expertise_level, perspective, interests, mode
+    )
     user_prompt = _build_user_prompt(topic, search_results)
 
-    async with httpx.AsyncClient(timeout=120) as client:
-        response = await client.post(
-            f"{endpoint}/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": MODEL,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.7,
-            },
-        )
-        response.raise_for_status()
+    async with httpx.AsyncClient(timeout=180) as client:
+        for attempt in range(3):
+            response = await client.post(
+                f"{endpoint}/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": MODEL,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.7,
+                },
+            )
+            if response.status_code == 429 and attempt < 2:
+                wait = (attempt + 1) * 5
+                await asyncio.sleep(wait)
+                continue
+            response.raise_for_status()
+            break
 
     data = response.json()
     raw_text: str = data["choices"][0]["message"]["content"].strip()

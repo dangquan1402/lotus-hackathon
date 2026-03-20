@@ -102,8 +102,8 @@ export default function LearningView() {
             <div className="h-4 w-px bg-[#2d2d4e]" />
             <div className="min-w-0">
               <h1 className="text-white font-semibold truncate">{session.topic}</h1>
-              {session.content_summary && (
-                <p className="text-slate-500 text-xs truncate mt-0.5">{session.content_summary}</p>
+              {session.generated_content?.overview && (
+                <p className="text-slate-500 text-xs truncate mt-0.5">{session.generated_content.overview}</p>
               )}
             </div>
           </div>
@@ -140,15 +140,15 @@ export default function LearningView() {
         {activeTab === 'video' && (
           <VideoPlayer
             sessionId={numericSessionId}
-            videoUrl={session.video_url}
-            onVideoGenerated={(url) => handleSessionUpdate({ video_url: url })}
+            videoUrl={session.video_path ? `/api/files/session_${numericSessionId}/video/lesson_${numericSessionId}.mp4` : undefined}
+            onVideoGenerated={(url) => handleSessionUpdate({ video_path: url })}
           />
         )}
         {activeTab === 'slides' && (
           <SlideViewer
             sessionId={numericSessionId}
-            slidesUrl={session.slides_url}
-            onSlidesGenerated={(url) => handleSessionUpdate({ slides_url: url })}
+            slidesUrl={session.slides_path ? `/api/files/session_${numericSessionId}/slides/lesson_${numericSessionId}.pptx` : undefined}
+            onSlidesGenerated={(url) => handleSessionUpdate({ slides_path: url })}
           />
         )}
         {activeTab === 'quiz' && (

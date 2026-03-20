@@ -38,6 +38,9 @@ class TopicExploreRequest(BaseModel):
 
     user_id: int = Field(..., gt=0, description="ID of the user requesting content")
     topic: str = Field(..., min_length=1, max_length=500, description="Topic to explore")
+    mode: str = Field(
+        default="short", description="Content mode: 'short' (1-2 min) or 'long' (5-8 min)"
+    )
 
 
 class TopicExploreResponse(BaseModel):
@@ -53,20 +56,35 @@ class TopicExploreResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class GenerateVideoRequest(BaseModel):
-    """Request to generate a video for a learning session."""
+class SessionIdRequest(BaseModel):
+    """Generic request with just a session_id."""
 
     session_id: int = Field(..., gt=0)
 
 
-class GenerateVideoResponse(BaseModel):
-    """Response after video generation."""
+class StepResponse(BaseModel):
+    """Generic response for a pipeline step."""
 
     session_id: int
     status: str
+    message: str = ""
+
+
+class GenerateImagesResponse(StepResponse):
+    image_paths: list[str] = []
+
+
+class GenerateVoiceResponse(StepResponse):
+    audio_path: str | None = None
+
+
+class GenerateVideoRequest(BaseModel):
+    session_id: int = Field(..., gt=0)
+
+
+class GenerateVideoResponse(StepResponse):
     video_path: str | None = None
     video_url: str | None = None
-    message: str = ""
 
 
 class GenerateSlidesRequest(BaseModel):
@@ -83,6 +101,39 @@ class GenerateSlidesResponse(BaseModel):
     slides_path: str | None = None
     slides_url: str | None = None
     message: str = ""
+
+
+class SessionSummary(BaseModel):
+    """Lightweight session info for listing."""
+
+    id: int
+    user_id: int
+    topic: str
+    status: str
+    video_path: str | None = None
+    slides_path: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SessionResponse(BaseModel):
+    """Full session state with all pipeline artifacts."""
+
+    id: int
+    user_id: int
+    topic: str
+    status: str
+    generated_content: GeneratedContent | None = None
+    image_paths: list[str] | None = None
+    video_path: str | None = None
+    slides_path: str | None = None
+    error_message: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class QuizSubmitRequest(BaseModel):

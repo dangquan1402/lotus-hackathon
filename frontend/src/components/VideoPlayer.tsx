@@ -45,22 +45,29 @@ export default function VideoPlayer({ sessionId, videoUrl, onVideoGenerated }: V
 
   if (!videoUrl && !generating) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] bg-[#1a1a2e] border border-[#2d2d4e] rounded-2xl p-8 text-center">
-        <div className="w-20 h-20 rounded-full bg-indigo-500/10 flex items-center justify-center mb-6 border border-indigo-500/20">
+      <div className="flex flex-col items-center justify-center min-h-[400px] rounded-2xl p-8 text-center"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
+          style={{ background: 'rgba(30,58,47,0.08)', border: '1px solid rgba(30,58,47,0.15)' }}>
           <span className="text-4xl">🎬</span>
         </div>
-        <h3 className="text-xl font-semibold text-white mb-2">No video yet</h3>
-        <p className="text-slate-400 mb-8 max-w-sm">
+        <h3 className="text-xl font-bold mb-2"
+          style={{ fontFamily: "'Playfair Display', serif", color: 'var(--forest)' }}>
+          No video yet
+        </h3>
+        <p className="mb-8 max-w-sm text-sm" style={{ color: 'var(--muted)' }}>
           Generate a personalized video lesson with images, narration, and captions.
         </p>
         {error && (
-          <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm w-full max-w-sm">
+          <div className="mb-6 rounded-xl px-4 py-3 text-sm w-full max-w-sm"
+            style={{ background: 'rgba(196,92,92,0.08)', border: '1px solid rgba(196,92,92,0.3)', color: 'var(--rose)' }}>
             {error}
           </div>
         )}
         <button
           onClick={handleGenerate}
-          className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-8 py-3 rounded-xl transition-all shadow-lg shadow-indigo-500/20"
+          className="font-semibold px-8 py-3 rounded-xl transition-all hover:-translate-y-0.5"
+          style={{ background: 'var(--gold)', color: '#fff', boxShadow: '0 4px 16px rgba(200,150,62,0.3)' }}
         >
           Generate Video
         </button>
@@ -70,11 +77,14 @@ export default function VideoPlayer({ sessionId, videoUrl, onVideoGenerated }: V
 
   if (generating) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] bg-[#1a1a2e] border border-[#2d2d4e] rounded-2xl p-8 text-center">
+      <div className="flex flex-col items-center justify-center min-h-[400px] rounded-2xl p-8 text-center"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="relative w-20 h-20 mb-8">
-          <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-pulse" />
+          <div className="absolute inset-0 rounded-full animate-pulse opacity-20"
+            style={{ border: '2px solid var(--forest)' }} />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin"
+              style={{ borderColor: 'var(--gold)', borderTopColor: 'transparent' }} />
           </div>
         </div>
 
@@ -88,13 +98,17 @@ export default function VideoPlayer({ sessionId, videoUrl, onVideoGenerated }: V
             return (
               <div
                 key={s.id}
-                className={`flex items-center gap-3 text-sm ${
-                  isDone ? 'text-emerald-400' : isCurrent ? 'text-white' : 'text-slate-600'
-                }`}
+                className="flex items-center gap-3 text-sm"
+                style={{
+                  color: isDone ? 'var(--forest)' : isCurrent ? 'var(--text)' : 'var(--border)',
+                }}
               >
                 <span className="w-5 text-center">
-                  {isDone ? '✓' : isCurrent ? (
-                    <span className="inline-block w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                  {isDone ? (
+                    <span style={{ color: 'var(--forest)' }}>✓</span>
+                  ) : isCurrent ? (
+                    <span className="inline-block w-3 h-3 border-2 border-t-transparent rounded-full animate-spin"
+                      style={{ borderColor: 'var(--gold)', borderTopColor: 'transparent' }} />
                   ) : '○'}
                 </span>
                 <span>{s.label}</span>
@@ -103,14 +117,14 @@ export default function VideoPlayer({ sessionId, videoUrl, onVideoGenerated }: V
           })}
         </div>
 
-        <p className="text-slate-600 text-xs mt-6">This may take a few minutes…</p>
+        <p className="text-xs mt-6" style={{ color: 'var(--muted)' }}>This may take a few minutes…</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="bg-[#1a1a2e] border border-[#2d2d4e] rounded-2xl overflow-hidden">
+      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
         <video
           key={videoUrl}
           src={videoUrl}
@@ -122,10 +136,11 @@ export default function VideoPlayer({ sessionId, videoUrl, onVideoGenerated }: V
         </video>
       </div>
       <div className="flex items-center justify-between">
-        <p className="text-slate-500 text-sm">Your personalized video lesson is ready.</p>
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>Your personalized video lesson is ready.</p>
         <button
           onClick={handleGenerate}
-          className="text-slate-400 hover:text-indigo-400 text-sm transition-colors"
+          className="text-sm transition-colors"
+          style={{ color: 'var(--muted)' }}
         >
           ↺ Regenerate
         </button>

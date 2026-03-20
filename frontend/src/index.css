@@ -1,20 +1,19 @@
 @import "tailwindcss";
 
-@theme {
-  --color-background: #0f0f1a;
-  --color-surface: #1a1a2e;
-  --color-surface-2: #16213e;
-  --color-border: #2d2d4e;
-  --color-text-primary: #e2e8f0;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-accent-indigo: #6366f1;
-  --color-accent-violet: #8b5cf6;
-  --color-accent-indigo-light: #818cf8;
-  --color-accent-violet-light: #a78bfa;
-  --color-success: #10b981;
-  --color-error: #ef4444;
-  --color-warning: #f59e0b;
+:root {
+  --bg: #f5f0e8;
+  --surface: #fdfaf4;
+  --surface2: #ede8dd;
+  --border: #ddd7c9;
+  --forest: #1e3a2f;
+  --forest-light: #2d5443;
+  --forest-muted: #4a7560;
+  --gold: #c8963e;
+  --gold-light: #e8b86d;
+  --rose: #c45c5c;
+  --sky: #4a7fa8;
+  --text: #1a1a14;
+  --muted: #7a7060;
 }
 
 * {
@@ -29,16 +28,20 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background-color: #0f0f1a;
-  color: #e2e8f0;
+  background-color: var(--bg);
+  color: var(--text);
   font-family:
-    'Inter',
+    'Figtree',
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
   min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', serif;
 }
 
 #root {
@@ -52,33 +55,33 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a2e;
+  background: var(--surface2);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2d2d4e;
+  background: var(--border);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6366f1;
+  background: var(--forest-muted);
 }
 
 /* Smooth transitions */
 * {
-  transition-property: color, background-color, border-color, opacity;
+  transition-property: color, background-color, border-color, opacity, transform, box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
 
 /* Focus ring */
 *:focus-visible {
-  outline: 2px solid #6366f1;
+  outline: 2px solid var(--forest);
   outline-offset: 2px;
 }
 
 /* Selection */
 ::selection {
-  background-color: #6366f130;
-  color: #e2e8f0;
+  background-color: rgba(200, 150, 62, 0.25);
+  color: var(--text);
 }

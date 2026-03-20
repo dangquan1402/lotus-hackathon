@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.database import create_tables
-from app.routes import quiz, slides, topics, users, video
+from app.routes import assessment, quiz, slides, topics, users, video
 
 OUTPUT_DIR = Path("output")
 
@@ -42,6 +42,7 @@ app.include_router(topics.router, prefix="/api")
 app.include_router(video.router, prefix="/api")
 app.include_router(slides.router, prefix="/api")
 app.include_router(quiz.router, prefix="/api")
+app.include_router(assessment.router, prefix="/api")
 
 # Serve generated files (videos, slides, images)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

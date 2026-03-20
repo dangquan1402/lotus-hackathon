@@ -30,6 +30,7 @@ def _build_system_prompt(
     learning_history: list[dict] | None = None,
     age_group: str | None = None,
     goal: str | None = None,
+    assessment_summary: str | None = None,
 ) -> str:
     """Build the system prompt tailored to the user's profile."""
     style_guidance = {
@@ -124,6 +125,12 @@ def _build_system_prompt(
             "already mastered. Build on their existing foundation."
         )
 
+    if assessment_summary:
+        parts.append(
+            f"\nPre-assessment findings: {assessment_summary}\n"
+            "Use these findings to skip what they already know and focus on gaps."
+        )
+
     if mode == "short":
         length_instruction = (
             "\nIMPORTANT: This is for a SHORT video (60-90 seconds). Keep it punchy and concise."
@@ -196,6 +203,7 @@ async def asynthesize_content(
     learning_history: list[dict] | None = None,
     age_group: str | None = None,
     goal: str | None = None,
+    assessment_summary: str | None = None,
 ) -> GeneratedContent:
     """Synthesize search results into structured learning content via FuseAPI LLM.
 
@@ -224,6 +232,7 @@ async def asynthesize_content(
         learning_history,
         age_group,
         goal,
+        assessment_summary,
     )
     user_prompt = _build_user_prompt(topic, search_results)
 

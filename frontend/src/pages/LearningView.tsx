@@ -118,10 +118,11 @@ export default function LearningView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
         <div className="text-center">
-          <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">Loading your lesson…</p>
+          <div className="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4"
+            style={{ borderColor: 'var(--forest)', borderTopColor: 'transparent' }} />
+          <p style={{ color: 'var(--muted)' }}>Loading your lesson…</p>
         </div>
       </div>
     );
@@ -129,18 +130,22 @@ export default function LearningView() {
 
   if (error || !session) {
     return (
-      <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
         <div className="text-center max-w-sm">
-          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: 'rgba(196,92,92,0.08)', border: '1px solid rgba(196,92,92,0.2)' }}>
+            <svg className="w-8 h-8" style={{ color: 'var(--rose)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold text-white mb-2">Something went wrong</h2>
-          <p className="text-slate-400 mb-6">{error ?? 'Session not found.'}</p>
+          <h2 className="text-xl font-semibold mb-2" style={{ fontFamily: "'Playfair Display', serif", color: 'var(--forest)' }}>
+            Something went wrong
+          </h2>
+          <p className="mb-6" style={{ color: 'var(--muted)' }}>{error ?? 'Session not found.'}</p>
           <button
             onClick={() => navigate('/explore')}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
+            className="font-semibold px-6 py-2.5 rounded-xl transition-all"
+            style={{ background: 'var(--forest)', color: '#fdf8f0' }}
           >
             Back to Explore
           </button>
@@ -156,24 +161,27 @@ export default function LearningView() {
   const hasQuiz = (content?.quiz_questions?.length ?? 0) > 0;
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
       {/* Header */}
-      <header className="border-b border-[#2d2d4e] bg-[#0f0f1a]/90 backdrop-blur-sm sticky top-0 z-20">
+      <header className="sticky top-0 z-20" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
         <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => navigate('/explore')}
-              className="text-slate-400 hover:text-white transition-colors flex-shrink-0 flex items-center gap-1.5 text-sm hover:bg-[#2d2d4e] px-3 py-1.5 rounded-lg"
+              className="flex-shrink-0 flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-all"
+              style={{ color: 'var(--muted)' }}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
               Back
             </button>
-            <div className="h-4 w-px bg-[#2d2d4e] hidden sm:block" />
+            <div className="h-4 w-px hidden sm:block" style={{ background: 'var(--border)' }} />
             <div className="flex items-center gap-2">
-              <span className="text-lg hidden sm:block">🪷</span>
-              <span className="font-bold text-white text-base hidden sm:block">Lotus</span>
+              <span className="text-lg hidden sm:block">💎</span>
+              <span className="font-bold text-base hidden sm:block" style={{ fontFamily: "'Playfair Display', serif", color: 'var(--forest)' }}>
+                Lotus
+              </span>
             </div>
           </div>
 
@@ -181,7 +189,8 @@ export default function LearningView() {
             {!hasVideo && !generatingAll && (
               <button
                 onClick={handleGenerateAll}
-                className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium px-4 py-2 rounded-xl text-sm transition-all shadow-lg shadow-indigo-500/20"
+                className="flex items-center gap-2 font-semibold px-4 py-2 rounded-xl text-sm transition-all"
+                style={{ background: 'linear-gradient(135deg, var(--gold), var(--gold-light))', color: '#fff', boxShadow: '0 4px 12px rgba(200,150,62,0.3)' }}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3l14 9-14 9V3z" />
@@ -190,16 +199,18 @@ export default function LearningView() {
               </button>
             )}
             {generatingAll && (
-              <div className="flex items-center gap-2 text-slate-400 text-sm">
-                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
+                <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin"
+                  style={{ borderColor: 'var(--gold)', borderTopColor: 'transparent' }} />
                 Generating…
               </div>
             )}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                style={{ background: 'var(--gold)', color: '#fff' }}>
                 {userName.charAt(0).toUpperCase()}
               </div>
-              <span className="text-slate-300 text-sm hidden sm:block">{userName}</span>
+              <span className="text-sm hidden sm:block" style={{ color: 'var(--muted)' }}>{userName}</span>
             </div>
           </div>
         </div>
@@ -208,14 +219,17 @@ export default function LearningView() {
       {/* Body: sidebar + main */}
       <div className="flex-1 flex flex-col lg:flex-row max-w-screen-xl mx-auto w-full">
 
-        {/* ── Left Sidebar: Content Overview ───────────────────────────────────── */}
-        <aside className="lg:w-[350px] lg:min-w-[350px] lg:max-w-[350px] border-b lg:border-b-0 lg:border-r border-[#2d2d4e] bg-[#0f0f1a]/50 lg:sticky lg:top-[57px] lg:max-h-[calc(100vh-57px)] lg:overflow-y-auto">
+        {/* Left Sidebar: Content Overview */}
+        <aside className="lg:w-[350px] lg:min-w-[350px] lg:max-w-[350px] border-b lg:border-b-0 lg:border-r lg:sticky lg:top-[57px] lg:max-h-[calc(100vh-57px)] lg:overflow-y-auto"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
           <div className="p-5 space-y-5">
 
             {/* Lesson title + topic */}
             <div>
-              <p className="text-indigo-400 text-xs font-medium uppercase tracking-wider mb-1">{session.topic}</p>
-              <h1 className="text-white text-xl font-bold leading-tight">
+              <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--gold)' }}>
+                {session.topic}
+              </p>
+              <h1 className="text-xl font-bold leading-tight" style={{ fontFamily: "'Playfair Display', serif", color: 'var(--forest)' }}>
                 {content?.title ?? session.topic}
               </h1>
             </div>
@@ -223,15 +237,14 @@ export default function LearningView() {
             {/* Overview */}
             {content?.overview && (
               <div>
-                <p className="text-slate-300 text-sm leading-relaxed">{content.overview}</p>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>{content.overview}</p>
               </div>
             )}
 
             {/* Artifact status row */}
             <div className="space-y-2.5">
-              <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">Content</p>
+              <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: 'var(--muted)' }}>Content</p>
 
-              {/* Video status */}
               <ArtifactStatusRow
                 label="Video"
                 ready={hasVideo}
@@ -247,7 +260,6 @@ export default function LearningView() {
                 generateLabel="Generate"
               />
 
-              {/* Slides status */}
               <ArtifactStatusRow
                 label="Slides"
                 ready={hasSlides}
@@ -261,7 +273,6 @@ export default function LearningView() {
                 generateLabel="Generate"
               />
 
-              {/* Quiz status */}
               <ArtifactStatusRow
                 label="Quiz"
                 ready={hasQuiz}
@@ -278,7 +289,8 @@ export default function LearningView() {
 
             {/* Generate All error */}
             {generateAllError && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+              <div className="rounded-xl px-4 py-3 text-sm"
+                style={{ background: 'rgba(196,92,92,0.08)', border: '1px solid rgba(196,92,92,0.3)', color: 'var(--rose)' }}>
                 {generateAllError}
               </div>
             )}
@@ -286,7 +298,7 @@ export default function LearningView() {
             {/* Sections list */}
             {sections.length > 0 && (
               <div>
-                <p className="text-slate-500 text-xs uppercase tracking-wider font-medium mb-2.5">
+                <p className="text-xs uppercase tracking-wider font-semibold mb-2.5" style={{ color: 'var(--muted)' }}>
                   Sections ({sections.length})
                 </p>
                 <div className="space-y-1.5">
@@ -296,23 +308,26 @@ export default function LearningView() {
                     return (
                       <div
                         key={i}
-                        className="bg-[#1a1a2e] border border-[#2d2d4e] rounded-xl overflow-hidden"
+                        className="rounded-xl overflow-hidden"
+                        style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
                       >
                         <button
                           type="button"
                           onClick={() => toggleSection(i)}
-                          className="w-full flex items-center justify-between gap-2 px-3.5 py-3 text-left hover:bg-[#2d2d4e]/50 transition-colors"
+                          className="w-full flex items-center justify-between gap-2 px-3.5 py-3 text-left transition-colors"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs flex items-center justify-center flex-shrink-0 font-semibold">
+                            <span className="w-5 h-5 rounded-full text-xs flex items-center justify-center flex-shrink-0 font-bold"
+                              style={{ background: 'rgba(30,58,47,0.12)', color: 'var(--forest)' }}>
                               {i + 1}
                             </span>
-                            <span className="text-slate-200 text-sm font-medium truncate">{sec.title}</span>
+                            <span className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{sec.title}</span>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-slate-600 text-xs tabular-nums">{wordCount}w</span>
+                            <span className="text-xs tabular-nums" style={{ color: 'var(--muted)', fontFamily: "'JetBrains Mono', monospace" }}>{wordCount}w</span>
                             <svg
-                              className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                              className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                              style={{ color: 'var(--muted)' }}
                               fill="none" stroke="currentColor" viewBox="0 0 24 24"
                             >
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -321,7 +336,7 @@ export default function LearningView() {
                         </button>
                         {isOpen && (
                           <div className="px-3.5 pb-3.5">
-                            <p className="text-slate-400 text-xs leading-relaxed border-t border-[#2d2d4e] pt-3">
+                            <p className="text-xs leading-relaxed pt-3" style={{ color: 'var(--muted)', borderTop: '1px solid var(--border)' }}>
                               {sec.narration_text}
                             </p>
                           </div>
@@ -335,30 +350,30 @@ export default function LearningView() {
           </div>
         </aside>
 
-        {/* ── Main Content Area ──────────────────────────────────────────────────── */}
+        {/* Main Content Area */}
         <main className="flex-1 min-w-0 flex flex-col">
           {/* Tab bar */}
-          <div className="border-b border-[#2d2d4e] bg-[#0f0f1a]/80 px-4 sm:px-6 flex gap-1 sticky top-[57px] z-10 backdrop-blur-sm">
+          <div className="px-4 sm:px-6 flex gap-1 sticky top-[57px] z-10"
+            style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3.5 text-sm font-medium border-b-2 transition-all ${
-                  activeTab === tab.id
-                    ? 'border-indigo-500 text-indigo-400'
-                    : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'
-                }`}
+                className="flex items-center gap-2 px-4 py-3.5 text-sm font-semibold border-b-2 transition-all"
+                style={activeTab === tab.id
+                  ? { borderBottomColor: 'var(--forest)', color: 'var(--forest)' }
+                  : { borderBottomColor: 'transparent', color: 'var(--muted)' }}
               >
                 {tab.icon}
                 {tab.label}
                 {tab.id === 'video' && hasVideo && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />
+                  <span className="w-1.5 h-1.5 rounded-full ml-0.5" style={{ background: 'var(--forest)' }} />
                 )}
                 {tab.id === 'slides' && hasSlides && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />
+                  <span className="w-1.5 h-1.5 rounded-full ml-0.5" style={{ background: 'var(--forest)' }} />
                 )}
                 {tab.id === 'quiz' && hasQuiz && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />
+                  <span className="w-1.5 h-1.5 rounded-full ml-0.5" style={{ background: 'var(--forest)' }} />
                 )}
               </button>
             ))}
@@ -399,7 +414,7 @@ export default function LearningView() {
   );
 }
 
-// ─── Artifact Status Row ──────────────────────────────────────────────────────
+// Artifact Status Row
 
 interface ArtifactStatusRowProps {
   label: string;
@@ -411,13 +426,14 @@ interface ArtifactStatusRowProps {
 
 function ArtifactStatusRow({ label, ready, icon, onGenerate, generateLabel }: ArtifactStatusRowProps) {
   return (
-    <div className="flex items-center justify-between bg-[#1a1a2e] border border-[#2d2d4e] rounded-xl px-3.5 py-2.5">
+    <div className="flex items-center justify-between rounded-xl px-3.5 py-2.5"
+      style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
       <div className="flex items-center gap-2.5">
-        <span className={`${ready ? 'text-emerald-400' : 'text-slate-500'}`}>{icon}</span>
-        <span className="text-slate-300 text-sm font-medium">{label}</span>
+        <span style={{ color: ready ? 'var(--forest)' : 'var(--muted)' }}>{icon}</span>
+        <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{label}</span>
       </div>
       {ready ? (
-        <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-medium">
+        <span className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--forest)' }}>
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
           </svg>
@@ -427,7 +443,8 @@ function ArtifactStatusRow({ label, ready, icon, onGenerate, generateLabel }: Ar
         <button
           type="button"
           onClick={onGenerate}
-          className="text-indigo-400 hover:text-indigo-300 text-xs font-medium transition-colors hover:underline"
+          className="text-xs font-semibold transition-colors hover:underline"
+          style={{ color: 'var(--gold)' }}
         >
           {generateLabel} →
         </button>

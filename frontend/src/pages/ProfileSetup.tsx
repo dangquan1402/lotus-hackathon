@@ -138,46 +138,53 @@ export default function ProfileSetup() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] flex items-center justify-center p-4">
-      {/* Background gradient */}
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
+      {/* Warm background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl opacity-40"
+          style={{ background: 'radial-gradient(circle, #e8b86d30, transparent)' }} />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-40"
+          style={{ background: 'radial-gradient(circle, #1e3a2f15, transparent)' }} />
       </div>
 
       <div className="relative w-full max-w-2xl">
         {/* Logo / Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 mb-4 shadow-lg shadow-indigo-500/30">
-            <span className="text-2xl">🪷</span>
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-lg"
+            style={{ background: 'linear-gradient(135deg, var(--forest), var(--forest-light))', boxShadow: '0 8px 24px rgba(30,58,47,0.25)' }}>
+            <span className="text-2xl">💎</span>
           </div>
-          <h1 className="text-3xl font-bold text-white">Welcome to Lotus</h1>
-          <p className="text-slate-400 mt-2">Tell us about yourself to personalize your learning journey</p>
+          <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Playfair Display', serif", color: 'var(--forest)' }}>
+            Welcome to Lotus
+          </h1>
+          <p className="text-base" style={{ color: 'var(--muted)' }}>
+            Tell us about yourself to personalize your learning journey
+          </p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#1a1a2e] border border-[#2d2d4e] rounded-2xl p-8 shadow-2xl">
+        <div className="rounded-2xl p-8 shadow-xl"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {/* Tab toggle */}
-          <div className="flex rounded-xl overflow-hidden border border-[#2d2d4e] mb-6">
+          <div className="flex rounded-xl overflow-hidden mb-6"
+            style={{ border: '1px solid var(--border)' }}>
             <button
               type="button"
               onClick={() => { setTab('new'); setError(null); }}
-              className={`flex-1 py-2.5 text-sm font-medium transition-all ${
-                tab === 'new'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-[#0f0f1a] text-slate-400 hover:text-slate-200'
-              }`}
+              className="flex-1 py-2.5 text-sm font-semibold transition-all"
+              style={tab === 'new'
+                ? { background: 'var(--forest)', color: '#fdf8f0' }
+                : { background: 'var(--surface2)', color: 'var(--muted)' }}
             >
               New User
             </button>
             <button
               type="button"
               onClick={() => { setTab('login'); setLoginError(null); }}
-              className={`flex-1 py-2.5 text-sm font-medium transition-all ${
-                tab === 'login'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-[#0f0f1a] text-slate-400 hover:text-slate-200'
-              }`}
+              className="flex-1 py-2.5 text-sm font-semibold transition-all"
+              style={tab === 'login'
+                ? { background: 'var(--forest)', color: '#fdf8f0' }
+                : { background: 'var(--surface2)', color: 'var(--muted)' }}
             >
               Welcome Back
             </button>
@@ -186,7 +193,7 @@ export default function ProfileSetup() {
           {tab === 'login' && (
             <form onSubmit={handleLogin} noValidate className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>
                   Your Name
                 </label>
                 <input
@@ -194,18 +201,25 @@ export default function ProfileSetup() {
                   value={loginName}
                   onChange={(e) => setLoginName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full bg-[#0f0f1a] border border-[#2d2d4e] rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
+                  style={{
+                    background: 'var(--bg)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text)',
+                  }}
                   required
                 />
               </div>
 
               {loginError && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+                <div className="rounded-xl px-4 py-3 text-sm"
+                  style={{ background: 'rgba(196,92,92,0.08)', border: '1px solid rgba(196,92,92,0.3)', color: 'var(--rose)' }}>
                   {loginError}{' '}
                   <button
                     type="button"
                     onClick={() => { setTab('new'); setLoginError(null); }}
-                    className="underline hover:text-red-300 transition-colors"
+                    className="underline transition-colors"
+                    style={{ color: 'var(--rose)' }}
                   >
                     Create a new account
                   </button>
@@ -216,11 +230,12 @@ export default function ProfileSetup() {
                 type="submit"
                 onClick={handleLogin}
                 disabled={loginLoading}
-                className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40"
+                className="w-full font-semibold py-3.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: 'var(--forest)', color: '#fdf8f0', boxShadow: '0 4px 16px rgba(30,58,47,0.25)' }}
               >
                 {loginLoading ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                     Looking you up…
                   </span>
                 ) : (
@@ -234,7 +249,7 @@ export default function ProfileSetup() {
           <form onSubmit={handleSubmit} noValidate className="space-y-6">
             {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>
                 Your Name
               </label>
               <input
@@ -242,28 +257,36 @@ export default function ProfileSetup() {
                 value={form.name}
                 onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
                 placeholder="Enter your full name"
-                className="w-full bg-[#0f0f1a] border border-[#2d2d4e] rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text)',
+                }}
                 required
               />
             </div>
 
             {/* Interests Tag Input */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>
                 Interests
-                <span className="text-slate-500 font-normal ml-2">— type and press Enter to add</span>
+                <span className="font-normal ml-2" style={{ color: 'var(--muted)' }}>— type and press Enter to add</span>
               </label>
-              <div className="min-h-[48px] w-full bg-[#0f0f1a] border border-[#2d2d4e] rounded-xl px-3 py-2 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500/50 flex flex-wrap gap-2">
+              <div className="min-h-[48px] w-full rounded-xl px-3 py-2 flex flex-wrap gap-2 transition-all"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                 {form.interests.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 bg-indigo-500/20 text-indigo-300 text-sm rounded-lg px-3 py-1 border border-indigo-500/30"
+                    className="inline-flex items-center gap-1 text-sm rounded-lg px-3 py-1"
+                    style={{ background: 'rgba(30,58,47,0.12)', color: 'var(--forest)', border: '1px solid rgba(30,58,47,0.2)' }}
                   >
                     {tag}
                     <button
                       type="button"
                       onClick={() => removeTag(tag)}
-                      className="text-indigo-400 hover:text-white transition-colors ml-1 leading-none"
+                      className="ml-1 leading-none transition-colors"
+                      style={{ color: 'var(--forest-muted)' }}
                       aria-label={`Remove ${tag}`}
                     >
                       ×
@@ -277,14 +300,15 @@ export default function ProfileSetup() {
                   onKeyDown={handleTagKeyDown}
                   onBlur={() => tagInput.trim() && addTag(tagInput)}
                   placeholder={form.interests.length === 0 ? 'e.g. machine learning, history, physics…' : 'Add more…'}
-                  className="flex-1 min-w-32 bg-transparent text-white placeholder-slate-500 outline-none py-1 text-sm"
+                  className="flex-1 min-w-32 bg-transparent outline-none py-1 text-sm"
+                  style={{ color: 'var(--text)' }}
                 />
               </div>
             </div>
 
             {/* Learning Style */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-3">
+              <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
                 Learning Style
               </label>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -293,14 +317,13 @@ export default function ProfileSetup() {
                     key={opt.value}
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, learning_style: opt.value }))}
-                    className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer ${
-                      form.learning_style === opt.value
-                        ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
-                        : 'bg-[#0f0f1a] border-[#2d2d4e] text-slate-400 hover:border-slate-500'
-                    }`}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer"
+                    style={form.learning_style === opt.value
+                      ? { background: 'var(--forest)', border: '1px solid var(--forest)', color: '#fdf8f0' }
+                      : { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}
                   >
                     <span className="text-xl">{opt.icon}</span>
-                    <span className="text-xs font-medium">{opt.label}</span>
+                    <span className="text-xs font-semibold">{opt.label}</span>
                   </button>
                 ))}
               </div>
@@ -308,7 +331,7 @@ export default function ProfileSetup() {
 
             {/* Expertise Level */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-3">
+              <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
                 Expertise Level
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -317,20 +340,19 @@ export default function ProfileSetup() {
                     key={opt.value}
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, expertise_level: opt.value }))}
-                    className={`flex flex-col p-4 rounded-xl border transition-all cursor-pointer text-left ${
-                      form.expertise_level === opt.value
-                        ? 'bg-indigo-500/20 border-indigo-500'
-                        : 'bg-[#0f0f1a] border-[#2d2d4e] hover:border-slate-500'
-                    }`}
+                    className="flex flex-col p-4 rounded-xl border transition-all cursor-pointer text-left"
+                    style={form.expertise_level === opt.value
+                      ? { background: 'var(--forest)', border: '1px solid var(--forest)' }
+                      : { background: 'var(--bg)', border: '1px solid var(--border)' }}
                   >
-                    <span
-                      className={`text-sm font-semibold ${
-                        form.expertise_level === opt.value ? 'text-indigo-300' : 'text-slate-300'
-                      }`}
-                    >
+                    <span className="text-sm font-semibold"
+                      style={{ color: form.expertise_level === opt.value ? '#fdf8f0' : 'var(--text)' }}>
                       {opt.label}
                     </span>
-                    <span className="text-xs text-slate-500 mt-1">{opt.desc}</span>
+                    <span className="text-xs mt-1"
+                      style={{ color: form.expertise_level === opt.value ? 'rgba(253,248,240,0.7)' : 'var(--muted)' }}>
+                      {opt.desc}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -338,7 +360,7 @@ export default function ProfileSetup() {
 
             {/* Age Group */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-3">
+              <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
                 Age Group
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -347,20 +369,19 @@ export default function ProfileSetup() {
                     key={opt.value}
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, age_group: opt.value }))}
-                    className={`flex flex-col p-4 rounded-xl border transition-all cursor-pointer text-left ${
-                      form.age_group === opt.value
-                        ? 'bg-indigo-500/20 border-indigo-500'
-                        : 'bg-[#0f0f1a] border-[#2d2d4e] hover:border-slate-500'
-                    }`}
+                    className="flex flex-col p-4 rounded-xl border transition-all cursor-pointer text-left"
+                    style={form.age_group === opt.value
+                      ? { background: 'var(--forest)', border: '1px solid var(--forest)' }
+                      : { background: 'var(--bg)', border: '1px solid var(--border)' }}
                   >
-                    <span
-                      className={`text-sm font-semibold ${
-                        form.age_group === opt.value ? 'text-indigo-300' : 'text-slate-300'
-                      }`}
-                    >
+                    <span className="text-sm font-semibold"
+                      style={{ color: form.age_group === opt.value ? '#fdf8f0' : 'var(--text)' }}>
                       {opt.label}
                     </span>
-                    <span className="text-xs text-slate-500 mt-1">{opt.desc}</span>
+                    <span className="text-xs mt-1"
+                      style={{ color: form.age_group === opt.value ? 'rgba(253,248,240,0.7)' : 'var(--muted)' }}>
+                      {opt.desc}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -368,7 +389,7 @@ export default function ProfileSetup() {
 
             {/* Learning Goal */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-3">
+              <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
                 What's your goal?
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -377,21 +398,20 @@ export default function ProfileSetup() {
                     key={opt.value}
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, goal: opt.value }))}
-                    className={`flex flex-col p-4 rounded-xl border transition-all cursor-pointer text-left ${
-                      form.goal === opt.value
-                        ? 'bg-indigo-500/20 border-indigo-500'
-                        : 'bg-[#0f0f1a] border-[#2d2d4e] hover:border-slate-500'
-                    }`}
+                    className="flex flex-col p-4 rounded-xl border transition-all cursor-pointer text-left"
+                    style={form.goal === opt.value
+                      ? { background: 'var(--forest)', border: '1px solid var(--forest)' }
+                      : { background: 'var(--bg)', border: '1px solid var(--border)' }}
                   >
                     <span className="text-xl mb-1">{opt.icon}</span>
-                    <span
-                      className={`text-sm font-semibold ${
-                        form.goal === opt.value ? 'text-indigo-300' : 'text-slate-300'
-                      }`}
-                    >
+                    <span className="text-sm font-semibold"
+                      style={{ color: form.goal === opt.value ? '#fdf8f0' : 'var(--text)' }}>
                       {opt.label}
                     </span>
-                    <span className="text-xs text-slate-500 mt-0.5">{opt.desc}</span>
+                    <span className="text-xs mt-0.5"
+                      style={{ color: form.goal === opt.value ? 'rgba(253,248,240,0.7)' : 'var(--muted)' }}>
+                      {opt.desc}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -399,7 +419,7 @@ export default function ProfileSetup() {
 
             {/* Visual Style */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-3">
+              <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
                 Preferred Visual Style
               </label>
               <div className="flex flex-wrap gap-2">
@@ -408,14 +428,13 @@ export default function ProfileSetup() {
                     key={opt.value}
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, image_style: opt.value }))}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer text-sm ${
-                      form.image_style === opt.value
-                        ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
-                        : 'bg-[#0f0f1a] border-[#2d2d4e] text-slate-400 hover:border-slate-500'
-                    }`}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer text-sm"
+                    style={form.image_style === opt.value
+                      ? { background: 'rgba(200,150,62,0.15)', border: '1px solid var(--gold)', color: 'var(--forest)' }
+                      : { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}
                   >
                     <span>{opt.icon}</span>
-                    <span className="font-medium">{opt.label}</span>
+                    <span className="font-semibold">{opt.label}</span>
                   </button>
                 ))}
               </div>
@@ -423,22 +442,28 @@ export default function ProfileSetup() {
 
             {/* Perspective / Role */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>
                 Your Role or Viewpoint
-                <span className="text-slate-500 font-normal ml-2">— optional</span>
+                <span className="font-normal ml-2" style={{ color: 'var(--muted)' }}>— optional</span>
               </label>
               <textarea
                 value={form.perspective}
                 onChange={(e) => setForm((p) => ({ ...p, perspective: e.target.value }))}
                 placeholder="e.g. I'm a software engineer exploring AI, or a student studying for a biology exam…"
                 rows={3}
-                className="w-full bg-[#0f0f1a] border border-[#2d2d4e] rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 resize-none"
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none transition-all"
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text)',
+                }}
               />
             </div>
 
             {/* Error */}
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+              <div className="rounded-xl px-4 py-3 text-sm"
+                style={{ background: 'rgba(196,92,92,0.08)', border: '1px solid rgba(196,92,92,0.3)', color: 'var(--rose)' }}>
                 {error}
               </div>
             )}
@@ -448,11 +473,12 @@ export default function ProfileSetup() {
               type="submit"
               onClick={handleSubmit}
               disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40"
+              className="w-full font-semibold py-3.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'var(--forest)', color: '#fdf8f0', boxShadow: '0 4px 16px rgba(30,58,47,0.25)' }}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                   Creating your profile…
                 </span>
               ) : (

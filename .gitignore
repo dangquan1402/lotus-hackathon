@@ -33,3 +33,4 @@ Thumbs.db
 .ruff_cache/
 *.png
 .claude/
+.playwright-mcp/

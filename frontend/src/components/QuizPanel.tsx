@@ -43,7 +43,7 @@ export default function QuizPanel({ sessionId }: QuizPanelProps) {
         const data = await api.getQuiz(sessionId);
         if (cancelled) return;
         // Backend returns list of question dicts directly
-        const qs = Array.isArray(data) ? data : data.questions || [];
+        const qs = Array.isArray(data) ? data : (data as { questions?: Question[] }).questions || [];
         if (qs.length === 0) {
           setQuizState('empty');
         } else {
@@ -91,28 +91,35 @@ export default function QuizPanel({ sessionId }: QuizPanelProps) {
 
   if (quizState === 'loading' || quizState === 'submitting') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] bg-[#1a1a2e] border border-[#2d2d4e] rounded-2xl p-8">
-        <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-slate-400">{quizState === 'loading' ? 'Loading quiz…' : 'Submitting…'}</p>
+      <div className="flex flex-col items-center justify-center min-h-[400px] rounded-2xl p-8"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="w-10 h-10 border-2 border-t-transparent rounded-full animate-spin mb-4"
+          style={{ borderColor: 'var(--forest)', borderTopColor: 'transparent' }} />
+        <p style={{ color: 'var(--muted)' }}>{quizState === 'loading' ? 'Loading quiz…' : 'Submitting…'}</p>
       </div>
     );
   }
 
   if (quizState === 'error') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] bg-[#1a1a2e] border border-[#2d2d4e] rounded-2xl p-8 text-center">
+      <div className="flex flex-col items-center justify-center min-h-[400px] rounded-2xl p-8 text-center"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <span className="text-4xl mb-4">⚠️</span>
-        <p className="text-slate-400 text-sm">{error}</p>
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>{error}</p>
       </div>
     );
   }
 
   if (quizState === 'empty') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] bg-[#1a1a2e] border border-[#2d2d4e] rounded-2xl p-8 text-center">
+      <div className="flex flex-col items-center justify-center min-h-[400px] rounded-2xl p-8 text-center"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <span className="text-5xl mb-4">🧠</span>
-        <h3 className="text-lg font-semibold text-white mb-2">No quiz available</h3>
-        <p className="text-slate-400 text-sm">Quiz questions will appear once content is ready.</p>
+        <h3 className="text-lg font-bold mb-2"
+          style={{ fontFamily: "'Playfair Display', serif", color: 'var(--forest)' }}>
+          No quiz available
+        </h3>
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>Quiz questions will appear once content is ready.</p>
       </div>
     );
   }
@@ -120,63 +127,84 @@ export default function QuizPanel({ sessionId }: QuizPanelProps) {
   if (quizState === 'results' && result) {
     const pct = result.score;
     const grade = pct >= 90 ? 'Excellent!' : pct >= 70 ? 'Good job!' : pct >= 50 ? 'Keep going!' : 'Keep studying!';
-    const gradeColor = pct >= 90 ? 'text-emerald-400' : pct >= 70 ? 'text-indigo-400' : pct >= 50 ? 'text-amber-400' : 'text-red-400';
+    const gradeColor = pct >= 90 ? 'var(--forest)' : pct >= 70 ? 'var(--sky)' : pct >= 50 ? 'var(--gold)' : 'var(--rose)';
 
     return (
       <div className="space-y-6">
         {/* Score card */}
-        <div className="bg-[#1a1a2e] border border-[#2d2d4e] rounded-2xl p-8 text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 mb-4">
-            <span className="text-4xl font-bold text-white">{Math.round(pct)}%</span>
+        <div className="rounded-2xl p-8 text-center"
+          style={{ background: 'linear-gradient(135deg, var(--forest), var(--forest-light))', border: '1px solid var(--forest)' }}>
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-4"
+            style={{ background: 'rgba(253,248,240,0.15)', border: '2px solid rgba(253,248,240,0.3)' }}>
+            <span className="text-4xl font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: '#fdf8f0' }}>
+              {Math.round(pct)}%
+            </span>
           </div>
-          <h3 className={`text-2xl font-bold mb-1 ${gradeColor}`}>{grade}</h3>
-          <p className="text-slate-400">
-            <span className="text-white font-semibold">{result.correct}</span> out of{' '}
-            <span className="text-white font-semibold">{result.total}</span> correct
+          <h3 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: gradeColor === 'var(--forest)' ? '#fdf8f0' : gradeColor }}>
+            {grade}
+          </h3>
+          <p style={{ color: 'rgba(253,248,240,0.7)' }}>
+            <span className="font-bold" style={{ color: '#fdf8f0' }}>{result.correct}</span> out of{' '}
+            <span className="font-bold" style={{ color: '#fdf8f0' }}>{result.total}</span> correct
           </p>
           <button onClick={handleRetry}
-            className="mt-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold px-6 py-2.5 rounded-xl transition-all">
+            className="mt-6 font-semibold px-6 py-2.5 rounded-xl transition-all hover:-translate-y-0.5"
+            style={{ background: 'var(--gold)', color: '#fff', boxShadow: '0 4px 12px rgba(200,150,62,0.4)' }}>
             Try Again
           </button>
         </div>
 
         {/* Review */}
         <div className="space-y-3">
-          <h4 className="text-white font-semibold text-lg">Review</h4>
+          <h4 className="font-bold text-lg" style={{ fontFamily: "'Playfair Display', serif", color: 'var(--forest)' }}>Review</h4>
           {result.results.map((r, qi) => {
             const q = questions[qi];
             return (
-              <div key={qi} className={`bg-[#1a1a2e] border rounded-xl p-5 ${r.is_correct ? 'border-emerald-500/30' : 'border-red-500/30'}`}>
+              <div key={qi} className="rounded-xl p-5"
+                style={{
+                  background: 'var(--surface)',
+                  border: `1px solid ${r.is_correct ? 'rgba(30,58,47,0.3)' : 'rgba(196,92,92,0.3)'}`,
+                }}>
                 <div className="flex items-start gap-3 mb-3">
-                  <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                    r.is_correct ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                  }`}>
+                  <span className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold"
+                    style={r.is_correct
+                      ? { background: 'rgba(30,58,47,0.12)', color: 'var(--forest)' }
+                      : { background: 'rgba(196,92,92,0.12)', color: 'var(--rose)' }}>
                     {r.is_correct ? '✓' : '✗'}
                   </span>
-                  <span className="text-white font-medium">{q.question}</span>
+                  <span className="font-semibold" style={{ color: 'var(--text)' }}>{q.question}</span>
                 </div>
                 <div className="space-y-2 ml-10">
                   {q.options.map((opt, oi) => {
                     const isCorrect = oi === r.correct_index;
                     const isUserChoice = oi === r.submitted_index;
-                    let cls = 'px-4 py-2.5 rounded-lg text-sm ';
-                    if (isCorrect) cls += 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300';
-                    else if (isUserChoice) cls += 'bg-red-500/10 border border-red-500/30 text-red-300';
-                    else cls += 'bg-[#0f0f1a] border border-[#2d2d4e] text-slate-500';
+                    let style: React.CSSProperties = {
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                    };
+                    if (isCorrect) {
+                      style = { ...style, background: 'rgba(30,58,47,0.08)', border: '1px solid rgba(30,58,47,0.25)', color: 'var(--forest)' };
+                    } else if (isUserChoice) {
+                      style = { ...style, background: 'rgba(196,92,92,0.08)', border: '1px solid rgba(196,92,92,0.25)', color: 'var(--rose)' };
+                    } else {
+                      style = { ...style, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' };
+                    }
 
                     return (
-                      <div key={oi} className={cls}>
-                        <span className="font-medium mr-2">{String.fromCharCode(65 + oi)})</span>
+                      <div key={oi} style={style}>
+                        <span className="font-semibold mr-2">{String.fromCharCode(65 + oi)})</span>
                         {opt}
-                        {isCorrect && <span className="ml-2 text-xs text-emerald-400">✓ Correct</span>}
-                        {isUserChoice && !isCorrect && <span className="ml-2 text-xs text-red-400">Your answer</span>}
+                        {isCorrect && <span className="ml-2 text-xs" style={{ color: 'var(--forest)' }}>✓ Correct</span>}
+                        {isUserChoice && !isCorrect && <span className="ml-2 text-xs" style={{ color: 'var(--rose)' }}>Your answer</span>}
                       </div>
                     );
                   })}
                 </div>
                 {r.explanation && (
-                  <div className="mt-3 ml-10 bg-indigo-500/10 border border-indigo-500/20 rounded-lg px-4 py-2.5">
-                    <p className="text-slate-300 text-sm">{r.explanation}</p>
+                  <div className="mt-3 ml-10 rounded-lg px-4 py-2.5"
+                    style={{ background: 'rgba(200,150,62,0.08)', border: '1px solid rgba(200,150,62,0.2)' }}>
+                    <p className="text-sm" style={{ color: 'var(--text)' }}>{r.explanation}</p>
                   </div>
                 )}
               </div>
@@ -197,30 +225,34 @@ export default function QuizPanel({ sessionId }: QuizPanelProps) {
     <div className="space-y-6">
       {/* Progress */}
       <div className="flex items-center justify-between">
-        <span className="text-slate-300 font-medium text-sm">
+        <span className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
           Question {currentIndex + 1} of {questions.length}
         </span>
-        <span className="text-slate-500 text-sm">{answeredCount} answered</span>
+        <span className="text-sm" style={{ color: 'var(--muted)' }}>{answeredCount} answered</span>
       </div>
-      <div className="w-full bg-[#2d2d4e] rounded-full h-1.5 overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-500"
-          style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
+      <div className="w-full rounded-full h-1.5 overflow-hidden" style={{ background: 'var(--border)' }}>
+        <div className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${(answeredCount / questions.length) * 100}%`,
+            background: 'linear-gradient(90deg, var(--forest), var(--gold))',
+          }} />
       </div>
 
       {/* Question */}
-      <div className="bg-[#1a1a2e] border border-[#2d2d4e] rounded-2xl p-6 sm:p-8">
-        <p className="text-white text-lg font-medium mb-6">{q.question}</p>
+      <div className="rounded-2xl p-6 sm:p-8"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <p className="text-lg font-semibold mb-6" style={{ color: 'var(--text)' }}>{q.question}</p>
         <div className="space-y-3">
           {q.options.map((opt, oi) => (
             <button key={oi} onClick={() => selectAnswer(oi)}
-              className={`w-full text-left px-5 py-4 rounded-xl border transition-all flex items-start gap-4 ${
-                answers[currentIndex] === oi
-                  ? 'bg-indigo-500/15 border-indigo-500 text-white'
-                  : 'bg-[#0f0f1a] border-[#2d2d4e] text-slate-300 hover:border-slate-500'
-              }`}>
-              <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                answers[currentIndex] === oi ? 'border-indigo-500 bg-indigo-500' : 'border-slate-600'
-              }`}>
+              className="w-full text-left px-5 py-4 rounded-xl border transition-all flex items-start gap-4"
+              style={answers[currentIndex] === oi
+                ? { background: 'rgba(30,58,47,0.08)', border: '1px solid var(--forest)', color: 'var(--forest)' }
+                : { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+              <span className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                style={answers[currentIndex] === oi
+                  ? { borderColor: 'var(--forest)', background: 'var(--forest)' }
+                  : { borderColor: 'var(--border)' }}>
                 {answers[currentIndex] === oi && <span className="w-2 h-2 rounded-full bg-white" />}
               </span>
               <span>{String.fromCharCode(65 + oi)}) {opt}</span>
@@ -232,26 +264,36 @@ export default function QuizPanel({ sessionId }: QuizPanelProps) {
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <button onClick={() => setCurrentIndex(i => i - 1)} disabled={currentIndex === 0}
-          className="px-4 py-2.5 rounded-xl border border-[#2d2d4e] text-slate-400 hover:text-white transition-all disabled:opacity-30">
+          className="px-4 py-2.5 rounded-xl border transition-all disabled:opacity-30 font-medium"
+          style={{ border: '1px solid var(--border)', color: 'var(--muted)' }}>
           ← Previous
         </button>
         <div className="flex gap-1">
           {questions.map((_, i) => (
             <button key={i} onClick={() => setCurrentIndex(i)}
-              className={`w-2.5 h-2.5 rounded-full transition-all ${
-                i === currentIndex ? 'bg-indigo-500 scale-125'
-                  : answers[i] !== null ? 'bg-indigo-500/40' : 'bg-[#2d2d4e]'
-              }`} />
+              className="rounded-full transition-all"
+              style={{
+                width: i === currentIndex ? '12px' : '10px',
+                height: i === currentIndex ? '12px' : '10px',
+                transform: i === currentIndex ? 'scale(1.2)' : 'scale(1)',
+                background: i === currentIndex
+                  ? 'var(--forest)'
+                  : answers[i] !== null
+                    ? 'rgba(30,58,47,0.4)'
+                    : 'var(--border)',
+              }} />
           ))}
         </div>
         {isLast ? (
           <button onClick={handleSubmit} disabled={!allAnswered}
-            className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 text-white font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20">
+            className="font-semibold px-5 py-2.5 rounded-xl transition-all disabled:opacity-40"
+            style={{ background: 'var(--forest)', color: '#fdf8f0', boxShadow: '0 4px 12px rgba(30,58,47,0.25)' }}>
             Submit →
           </button>
         ) : (
           <button onClick={() => setCurrentIndex(i => i + 1)}
-            className="px-4 py-2.5 rounded-xl border border-[#2d2d4e] text-slate-400 hover:text-white transition-all">
+            className="px-4 py-2.5 rounded-xl border transition-all font-medium"
+            style={{ border: '1px solid var(--border)', color: 'var(--muted)' }}>
             Next →
           </button>
         )}

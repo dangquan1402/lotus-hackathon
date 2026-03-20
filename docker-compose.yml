@@ -1,0 +1,48 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8989:8000"
+    volumes:
+      - ./backend:/app
+      - ./output:/app/output
+      - backend-data:/app/data
+      - ${HOME}/.fuseapi:/root/.fuseapi:ro
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/lotus.db
+    env_file:
+      - .env
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+    environment:
+      - API_TARGET=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  remotion:
+    build: ./remotion
+    ports:
+      - "3100:3000"
+    volumes:
+      - ./remotion:/app
+      - ./output:/app/out
+    profiles:
+      - full
+
+volumes:
+  backend-data:

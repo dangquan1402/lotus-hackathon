@@ -31,9 +31,7 @@ def _search_sync(query: str, api_key: str, scrape: bool = False) -> list[dict]:
     return [_extract_doc(doc) for doc in docs]
 
 
-async def search_topic(
-    topic: str, user_interests: list[str], scrape: bool = False
-) -> list[dict]:
+async def search_topic(topic: str, user_interests: list[str], scrape: bool = False) -> list[dict]:
     """Search web for topic, personalized by user interests.
 
     Args:

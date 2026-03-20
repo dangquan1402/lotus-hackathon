@@ -14,24 +14,11 @@ async def agenerate_video(
     output_dir: Path,
     alignment: dict | None = None,
 ) -> Path:
-    """Generate a video by calling the Remotion render service.
-
-    Args:
-        session_id: Unique session ID.
-        content: GeneratedContent dict with title and sections.
-        images_dir: Directory containing scene images (unused — service reads from shared volume).
-        audio_path: Path to narration WAV (unused — service reads from shared volume).
-        output_dir: Directory for rendered MP4 (unused — service writes to shared volume).
-        alignment: Optional word-level alignment data for captions.
-
-    Returns:
-        Path to the rendered MP4 file.
-    """
-    # Build scenes from content sections and alignment data
+    """Generate a video by calling the Remotion render service."""
     sections = content.get("sections", [])
     words = (alignment or {}).get("words", [])
 
-    # Calculate per-section timing from alignment
+    # Build scenes with clip_images for multi-image sections
     scenes = []
     word_idx = 0
     for i, section in enumerate(sections):
@@ -43,26 +30,39 @@ async def agenerate_video(
             end_s = words[end_idx]["end"]
             word_idx += section_word_count
         else:
-            # Fallback: evenly distribute
             duration_per_word = 0.4
             start_s = i * section_word_count * duration_per_word
             end_s = start_s + section_word_count * duration_per_word
 
+        duration_s = round(end_s - start_s, 2)
+
+        # Build clip_images for multi-image scenes
+        num_prompts = len(section.get("image_prompts") or [section.get("image_prompt", "")])
+        num_prompts = max(num_prompts, 1)
+        clip_duration = duration_s / num_prompts
+        clip_images = [
+            {
+                "file": f"scene_{i:02d}_{j:02d}.jpg",
+                "duration_s": round(clip_duration, 2),
+            }
+            for j in range(num_prompts)
+        ]
+
         scenes.append(
             {
                 "index": i,
-                "duration_s": round(end_s - start_s, 2),
+                "duration_s": duration_s,
                 "caption": section["narration_text"],
-                "image_prompt": section["image_prompt"],
+                "image_prompt": (section.get("image_prompts") or [""])[0],
                 "audio_start_s": round(start_s, 2),
                 "audio_end_s": round(end_s, 2),
+                "clip_images": clip_images,
             }
         )
 
     # Build phrases from alignment words for captions
     phrases = []
     if words:
-        # Group words into phrases (~8 words each)
         phrase_size = 8
         for pi in range(0, len(words), phrase_size):
             chunk = words[pi : pi + phrase_size]
@@ -79,6 +79,7 @@ async def agenerate_video(
         "fps": 30,
         "width": 1920,
         "height": 1080,
+        "layout": "static_caption_below",
     }
 
     async with httpx.AsyncClient(timeout=600) as client:
@@ -97,5 +98,4 @@ async def agenerate_video(
     if result.get("status") == "error":
         raise RuntimeError(f"Remotion render failed: {result.get('error')}")
 
-    output_path = Path(result["video_path"])
-    return output_path
+    return Path(result["video_path"])

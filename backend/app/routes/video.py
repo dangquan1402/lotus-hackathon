@@ -49,13 +49,17 @@ async def generate_images(
         session.status = "images_generating"
         await db.flush()
 
-        image_tasks = [
-            agenerate_image(
-                prompt=section["image_prompt"],
-                output_path=images_dir / f"scene_{str(i).zfill(2)}.jpg",
-            )
-            for i, section in enumerate(content.get("sections", []))
-        ]
+        image_tasks = []
+        for i, section in enumerate(content.get("sections", [])):
+            prompts = section.get("image_prompts") or [section.get("image_prompt", "")]
+            for j, prompt in enumerate(prompts):
+                if prompt:
+                    image_tasks.append(
+                        agenerate_image(
+                            prompt=prompt,
+                            output_path=images_dir / f"scene_{i:02d}_{j:02d}.jpg",
+                        )
+                    )
         image_results = await asyncio.gather(*image_tasks)
         session.image_paths = [str(p) for p in image_results]
         session.status = "images_done"
@@ -190,13 +194,17 @@ async def generate_all(
         # Images
         session.status = "images_generating"
         await db.flush()
-        image_tasks = [
-            agenerate_image(
-                prompt=section["image_prompt"],
-                output_path=images_dir / f"scene_{str(i).zfill(2)}.jpg",
-            )
-            for i, section in enumerate(content.get("sections", []))
-        ]
+        image_tasks = []
+        for i, section in enumerate(content.get("sections", [])):
+            prompts = section.get("image_prompts") or [section.get("image_prompt", "")]
+            for j, prompt in enumerate(prompts):
+                if prompt:
+                    image_tasks.append(
+                        agenerate_image(
+                            prompt=prompt,
+                            output_path=images_dir / f"scene_{i:02d}_{j:02d}.jpg",
+                        )
+                    )
         image_results = await asyncio.gather(*image_tasks)
         session.image_paths = [str(p) for p in image_results]
         session.status = "images_done"

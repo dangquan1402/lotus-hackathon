@@ -1,3 +1,8 @@
+export interface ClipImage {
+  file: string;
+  duration_s: number;
+}
+
 export interface Scene {
   index: number;
   duration_s: number;
@@ -8,6 +13,7 @@ export interface Scene {
   scene_type?: "illustration" | "title_card";
   title_card_number?: number;
   title_card_text?: string;
+  clip_images?: ClipImage[];
 }
 
 export interface Phrase {
@@ -27,6 +33,7 @@ export interface RenderConfig {
   bg_color?: string;
   title_card_bg_color?: string;
   title_card_text_color?: string;
+  layout?: "overlay" | "static_caption_below";
 }
 
 export interface LessonData {

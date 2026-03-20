@@ -17,7 +17,11 @@ class ContentSection(BaseModel):
 
     title: str = Field(..., description="Section title")
     narration_text: str = Field(..., description="Full narration text for this section")
-    image_prompt: str = Field(..., description="Prompt for generating the section image")
+    image_prompts: list[str] = Field(
+        default_factory=list, description="2-3 image prompts for this section"
+    )
+    # Backwards compat: accept old single image_prompt
+    image_prompt: str = Field(default="", description="Deprecated: use image_prompts")
 
 
 class GeneratedContent(BaseModel):

@@ -43,7 +43,7 @@ async def generate_slides(
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
-    if session.status != "complete" or not session.generated_content:
+    if not session.generated_content:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Session content is not ready. Status must be 'complete'.",

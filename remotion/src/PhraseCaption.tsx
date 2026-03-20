@@ -2,14 +2,18 @@ import React from "react";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import type { Phrase, RenderConfig } from "./types";
 
+const CAPTION_RATIO = 0.25; // bottom 25% for captions
+
 interface PhraseCaptionProps {
   phrases: Phrase[];
   renderConfig: RenderConfig;
+  layout?: string;
 }
 
 export const PhraseCaption: React.FC<PhraseCaptionProps> = ({
   phrases,
   renderConfig,
+  layout = "overlay",
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -18,20 +22,16 @@ export const PhraseCaption: React.FC<PhraseCaptionProps> = ({
   const fontSize = renderConfig.caption_font_size ?? 42;
   const color = renderConfig.caption_color ?? "#ffffff";
 
-  // Find the active phrase at the current time
   const activePhrase = phrases.find(
     (p) => currentTimeS >= p.start_s && currentTimeS <= p.end_s
   );
 
-  if (!activePhrase) {
-    return null;
-  }
+  if (!activePhrase) return null;
 
   const phraseStartFrame = activePhrase.start_s * fps;
   const phraseEndFrame = activePhrase.end_s * fps;
   const fadeDurationFrames = Math.min(6, (phraseEndFrame - phraseStartFrame) / 4);
 
-  // Fade in at start of phrase
   const fadeIn = interpolate(
     frame,
     [phraseStartFrame, phraseStartFrame + fadeDurationFrames],
@@ -39,7 +39,6 @@ export const PhraseCaption: React.FC<PhraseCaptionProps> = ({
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
-  // Fade out at end of phrase
   const fadeOut = interpolate(
     frame,
     [phraseEndFrame - fadeDurationFrames, phraseEndFrame],
@@ -49,6 +48,42 @@ export const PhraseCaption: React.FC<PhraseCaptionProps> = ({
 
   const opacity = Math.min(fadeIn, fadeOut);
 
+  // Caption below image — sits in bottom 25%
+  if (layout === "static_caption_below") {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: `${CAPTION_RATIO * 100}%`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 60px",
+          backgroundColor: "#111118",
+        }}
+      >
+        <div
+          style={{
+            fontSize: fontSize * 0.85,
+            fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+            fontWeight: 600,
+            color,
+            textAlign: "center",
+            lineHeight: 1.5,
+            maxWidth: "90%",
+            opacity,
+          }}
+        >
+          {activePhrase.text}
+        </div>
+      </div>
+    );
+  }
+
+  // Default: overlay on image
   return (
     <AbsoluteFill
       style={{

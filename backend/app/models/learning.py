@@ -52,6 +52,9 @@ class LearningSession(Base):
     # Step 7: Generated slides path
     slides_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
+    # Key concepts the user learned in this session (extracted by LLM)
+    concepts_learned: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
     # Error tracking
     error_message: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 

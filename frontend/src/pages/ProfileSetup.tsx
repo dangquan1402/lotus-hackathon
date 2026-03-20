@@ -185,6 +185,7 @@ export default function ProfileSetup() {
 
               <button
                 type="submit"
+                onClick={handleLogin}
                 disabled={loginLoading}
                 className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40"
               >
@@ -331,6 +332,7 @@ export default function ProfileSetup() {
             {/* Submit */}
             <button
               type="submit"
+              onClick={handleSubmit}
               disabled={loading}
               className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40"
             >

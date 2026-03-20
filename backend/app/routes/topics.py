@@ -13,7 +13,7 @@ from app.schemas.learning import (
     TopicExploreRequest,
     TopicExploreResponse,
 )
-from app.services.content import asynthesize_content
+from app.services.content import aextract_concepts, asynthesize_content
 from app.services.search import search_topic
 
 router = APIRouter(prefix="/topics", tags=["topics"])
@@ -57,6 +57,22 @@ async def explore_topic(
     await db.refresh(session)
 
     try:
+        # Fetch learning history for personalization
+        history_result = await db.execute(
+            select(
+                LearningSession.topic,
+                LearningSession.concepts_learned,
+            )
+            .where(LearningSession.user_id == user.id)
+            .where(LearningSession.status != "error")
+            .order_by(LearningSession.created_at.desc())
+            .limit(5)
+        )
+        learning_history = [
+            {"topic": row.topic, "concepts": row.concepts_learned or []}
+            for row in history_result.all()
+        ]
+
         # Search web
         search_results = await search_topic(
             payload.topic, user.interests or [], scrape=(payload.mode == "long")
@@ -65,7 +81,7 @@ async def explore_topic(
         session.status = "generating"
         await db.flush()
 
-        # Synthesize content
+        # Synthesize content (with learning history context)
         generated = await asynthesize_content(
             topic=payload.topic,
             search_results=search_results,
@@ -74,12 +90,22 @@ async def explore_topic(
             perspective=user.perspective,
             interests=user.interests or [],
             mode=payload.mode,
+            learning_history=learning_history if learning_history else None,
         )
 
         session.generated_content = generated.model_dump()
         session.status = "complete"
         session.updated_at = datetime.now(UTC)
         await db.flush()
+
+        # Extract key concepts learned (async, non-blocking)
+        try:
+            concepts = await aextract_concepts(payload.topic, generated)
+            session.concepts_learned = concepts
+            await db.flush()
+        except Exception:
+            pass  # Non-critical — don't fail the request
+
         await db.refresh(session)
 
     except Exception as exc:

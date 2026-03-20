@@ -27,6 +27,7 @@ def _build_system_prompt(
     perspective: str | None,
     interests: list[str],
     mode: str = "short",
+    learning_history: list[dict] | None = None,
 ) -> str:
     """Build the system prompt tailored to the user's profile."""
     style_guidance = {
@@ -67,13 +68,34 @@ def _build_system_prompt(
         interests_str = ", ".join(interests)
         parts.append(f"User interests: {interests_str}. Connect content to these when relevant.")
 
+    # Learning history — reference prior knowledge
+    if learning_history:
+        history_lines = []
+        for session in learning_history[:5]:  # last 5 sessions
+            topic = session.get("topic", "")
+            concepts = session.get("concepts", [])
+            if concepts:
+                history_lines.append(f"- {topic}: knows {', '.join(concepts[:8])}")
+            else:
+                history_lines.append(f"- {topic}")
+        parts.append(
+            "\nThe user has previously studied these topics:\n"
+            + "\n".join(history_lines)
+            + "\n\nIMPORTANT: When explaining new concepts, reference their prior "
+            "knowledge. If a concept is similar to something they already know, "
+            "draw the connection (e.g. 'You learned about X in physics — this is "
+            "the same idea applied to Y'). Skip re-explaining concepts they've "
+            "already mastered. Build on their existing foundation."
+        )
+
     if mode == "short":
         length_instruction = (
             "\nIMPORTANT: This is for a SHORT video (60-90 seconds). Keep it punchy and concise."
         )
         section_instruction = (
             "Generate EXACTLY 4 sections (total ~200 words narration) and 3 quiz questions. "
-            "Each section narration must be 40-60 words — concise, no filler."
+            "Each section narration must be 40-60 words — concise, no filler. "
+            "Each section must have 2-3 image_prompts describing different visuals."
         )
         narration_hint = "40-60 words, 15-20 seconds spoken"
     else:
@@ -82,7 +104,8 @@ def _build_system_prompt(
         )
         section_instruction = (
             "Generate 5-6 sections (total ~1000-1500 words narration) and 5 quiz questions. "
-            "Each section narration should be 200-300 words — comprehensive and well-explained."
+            "Each section narration should be 200-300 words — comprehensive and well-explained. "
+            "Each section must have 2-3 image_prompts describing different visuals."
         )
         narration_hint = "200-300 words"
 
@@ -97,7 +120,7 @@ def _build_system_prompt(
         "    {\n"
         '      "title": "string",\n'
         f'      "narration_text": "string ({narration_hint})",\n'
-        '      "image_prompt": "string (detailed visual description for image generation)"\n'
+        '      "image_prompts": ["string (detailed visual description)", "string", "string"]\n'
         "    }\n"
         "  ],\n"
         '  "quiz_questions": [\n'
@@ -134,6 +157,7 @@ async def asynthesize_content(
     perspective: str | None,
     interests: list[str],
     mode: str = "short",
+    learning_history: list[dict] | None = None,
 ) -> GeneratedContent:
     """Synthesize search results into structured learning content via FuseAPI LLM.
 
@@ -154,7 +178,7 @@ async def asynthesize_content(
     """
     endpoint, api_key = _load_fuseapi_config()
     system_prompt = _build_system_prompt(
-        learning_style, expertise_level, perspective, interests, mode
+        learning_style, expertise_level, perspective, interests, mode, learning_history
     )
     user_prompt = _build_user_prompt(topic, search_results)
 
@@ -193,3 +217,46 @@ async def asynthesize_content(
         raise ValueError(f"LLM returned invalid JSON: {exc}\nRaw: {raw_text[:500]}") from exc
 
     return GeneratedContent.model_validate(parsed)
+
+
+async def aextract_concepts(topic: str, content: GeneratedContent) -> list[str]:
+    """Extract key concepts learned from the generated content via LLM."""
+    endpoint, api_key = _load_fuseapi_config()
+    narration = " ".join(s.narration_text for s in content.sections)
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(
+            f"{endpoint}/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Extract 5-10 key concepts/terms that a student would "
+                            "learn from this lesson. Return ONLY a JSON array of "
+                            'short strings, e.g. ["concept1", "concept2"]. '
+                            "No markdown, no explanation."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Topic: {topic}\n\nLesson content:\n{narration}",
+                    },
+                ],
+                "temperature": 0.3,
+            },
+        )
+        if resp.status_code != 200:
+            return []
+
+    raw = resp.json()["choices"][0]["message"]["content"].strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\n?", "", raw)
+        raw = re.sub(r"\n?```$", "", raw)
+    try:
+        concepts = json.loads(raw)
+        return concepts if isinstance(concepts, list) else []
+    except json.JSONDecodeError:
+        return []

@@ -42,6 +42,17 @@ app.post("/render", (req, res) => {
       }
     }
 
+    // Copy animated clips from shared dir to public/
+    const clipsDir = `${sessionDir}/clips`;
+    if (existsSync(clipsDir)) {
+      const fs = require("fs");
+      for (const file of fs.readdirSync(clipsDir)) {
+        if (file.endsWith(".mp4")) {
+          copyFileSync(path.join(clipsDir, file), path.join(publicDir, file));
+        }
+      }
+    }
+
     // Copy narration
     const narrationSrc = `${sessionDir}/narration.wav`;
     if (existsSync(narrationSrc)) {

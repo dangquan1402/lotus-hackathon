@@ -48,6 +48,7 @@ async def explore_topic(
 
     # Resolve image style: per-lesson override > user profile > fallback
     resolved_image_style = payload.image_style or user.image_style or "cartoon"
+    resolved_image_provider = payload.image_provider or "fuseapi"
 
     # If resuming from an assessed session
     if payload.session_id:
@@ -69,6 +70,7 @@ async def explore_topic(
             )
 
         session.image_style = resolved_image_style
+        session.image_provider = resolved_image_provider
         search_results = session.search_results or []
         assessment_summary = session.assessment_summary
     else:
@@ -78,6 +80,7 @@ async def explore_topic(
             topic=payload.topic,
             status="searching",
             image_style=resolved_image_style,
+            image_provider=resolved_image_provider,
         )
         db.add(session)
         await db.flush()

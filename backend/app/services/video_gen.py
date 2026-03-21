@@ -13,8 +13,14 @@ async def agenerate_video(
     audio_path: Path,
     output_dir: Path,
     alignment: dict | None = None,
+    use_animated: bool = False,
 ) -> Path:
-    """Generate a video by calling the Remotion render service."""
+    """Generate a video by calling the Remotion render service.
+
+    Args:
+        use_animated: If True, use animated .mp4 clips (from Grok)
+            instead of static .jpg images with Ken Burns effect.
+    """
     sections = content.get("sections", [])
     words = (alignment or {}).get("words", [])
 
@@ -26,9 +32,16 @@ async def agenerate_video(
 
         if words and word_idx < len(words):
             start_s = words[word_idx]["start"]
-            end_idx = min(word_idx + section_word_count, len(words)) - 1
-            end_s = words[end_idx]["end"]
-            word_idx += section_word_count
+            is_last_section = i == len(sections) - 1
+            if is_last_section:
+                # Last section gets ALL remaining alignment words
+                # (Whisper may split words differently than text.split())
+                end_s = words[-1]["end"]
+                word_idx = len(words)
+            else:
+                end_idx = min(word_idx + section_word_count, len(words)) - 1
+                end_s = words[end_idx]["end"]
+                word_idx += section_word_count
         else:
             duration_per_word = 0.4
             start_s = i * section_word_count * duration_per_word
@@ -36,17 +49,30 @@ async def agenerate_video(
 
         duration_s = round(end_s - start_s, 2)
 
-        # Build clip_images for multi-image scenes
-        num_prompts = len(section.get("image_prompts") or [section.get("image_prompt", "")])
+        # Build clip_images for the scene
+        num_prompts = len(
+            section.get("image_prompts")
+            or [section.get("image_prompt", "")]
+        )
         num_prompts = max(num_prompts, 1)
         clip_duration = duration_s / num_prompts
-        clip_images = [
-            {
-                "file": f"scene_{i:02d}_{j:02d}.jpg",
-                "duration_s": round(clip_duration, 2),
-            }
-            for j in range(num_prompts)
-        ]
+
+        clip_images = []
+        clips_dir = images_dir.parent / "clips"
+        for j in range(num_prompts):
+            mp4_path = clips_dir / f"scene_{i:02d}_{j:02d}.mp4"
+            if use_animated and mp4_path.exists():
+                # Animated clip — Remotion will adjust playback rate
+                clip_images.append({
+                    "file": f"scene_{i:02d}_{j:02d}.mp4",
+                    "duration_s": round(clip_duration, 2),
+                })
+            else:
+                # Static image — Ken Burns or multi-clip with crossfade
+                clip_images.append({
+                    "file": f"scene_{i:02d}_{j:02d}.jpg",
+                    "duration_s": round(clip_duration, 2),
+                })
 
         scenes.append(
             {
@@ -74,6 +100,23 @@ async def agenerate_video(
                     "text": " ".join(w["word"] for w in chunk),
                 }
             )
+
+    # Compensate for TransitionSeries overlap: each transition eats into
+    # adjacent scenes, shortening the total. Add overlap time to scenes.
+    transition_frames = 15
+    fps_val = 30
+    num_transitions = max(len(scenes) - 1, 0)
+    total_overlap_s = num_transitions * (transition_frames / fps_val)
+    if scenes and total_overlap_s > 0:
+        # Distribute overlap evenly across all scenes
+        pad_per_scene = total_overlap_s / len(scenes)
+        for sc in scenes:
+            sc["duration_s"] = round(sc["duration_s"] + pad_per_scene, 2)
+            # Also pad clip_images durations proportionally
+            if sc.get("clip_images"):
+                clip_pad = pad_per_scene / len(sc["clip_images"])
+                for ci in sc["clip_images"]:
+                    ci["duration_s"] = round(ci["duration_s"] + clip_pad, 2)
 
     render_config = {
         "fps": 30,

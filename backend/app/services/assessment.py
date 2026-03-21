@@ -10,7 +10,7 @@ from langgraph.types import interrupt
 
 # Reuse FuseAPI config loading from content.py
 CONFIG_PATH = Path.home() / ".fuseapi" / "config.json"
-MODELS = ["gemini-3-flash-preview", "claude-sonnet-4-6", "gpt-5.1"]
+MODELS = ["gpt-5.1"]
 
 
 def _load_config():

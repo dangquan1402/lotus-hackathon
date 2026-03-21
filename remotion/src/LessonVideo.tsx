@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Audio, Img, staticFile } from "remotion";
+import { AbsoluteFill, Audio, Img, OffthreadVideo, staticFile } from "remotion";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import type { ClipImage, LessonVideoProps, Scene } from "./types";
@@ -11,7 +11,10 @@ const DEFAULT_FPS = 30;
 const IMAGE_RATIO = 0.75; // top 75% for image
 const CLIP_CROSSFADE_FRAMES = 10;
 
-/** Multi-clip scene: cycles through clip images with crossfade */
+const CLIP_SOURCE_DURATION_S = 6; // Grok generates 6s clips
+
+/** Multi-clip scene: cycles through clip images/videos with crossfade.
+ *  For video clips (.mp4), adjusts playback rate to match target duration. */
 const MultiClipScene: React.FC<{
   clips: ClipImage[];
   fps: number;
@@ -26,10 +29,17 @@ const MultiClipScene: React.FC<{
   return (
     <TransitionSeries>
       {clips.map((clip, ci) => {
+        const isVideo = clip.file.endsWith(".mp4");
         const hasNext = ci < clips.length - 1;
         const durationInFrames =
           Math.round(clip.duration_s * fps) +
           (hasNext ? CLIP_CROSSFADE_FRAMES : 0);
+
+        // For video clips: speed up/slow down to fill the target duration
+        const playbackRate = isVideo
+          ? CLIP_SOURCE_DURATION_S / clip.duration_s
+          : 1;
+
         return (
           <React.Fragment key={ci}>
             {ci > 0 && (
@@ -40,7 +50,16 @@ const MultiClipScene: React.FC<{
             )}
             <TransitionSeries.Sequence durationInFrames={durationInFrames}>
               <AbsoluteFill style={{ overflow: "hidden", backgroundColor: "#000" }}>
-                <Img src={staticFile(clip.file)} style={imageStyle} />
+                {isVideo ? (
+                  <OffthreadVideo
+                    src={staticFile(clip.file)}
+                    style={imageStyle}
+                    playbackRate={playbackRate}
+                    muted
+                  />
+                ) : (
+                  <Img src={staticFile(clip.file)} style={imageStyle} />
+                )}
               </AbsoluteFill>
             </TransitionSeries.Sequence>
           </React.Fragment>

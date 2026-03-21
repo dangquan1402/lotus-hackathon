@@ -52,6 +52,7 @@ async def generate_images(
         await db.flush()
 
         image_style = session.image_style
+        image_provider = session.image_provider or "fuseapi"
         image_tasks = []
         for i, section in enumerate(content.get("sections", [])):
             prompts = section.get("image_prompts") or [section.get("image_prompt", "")]
@@ -62,6 +63,7 @@ async def generate_images(
                             prompt=prompt,
                             output_path=images_dir / f"scene_{i:02d}_{j:02d}.jpg",
                             style=image_style,
+                            provider=image_provider,
                         )
                     )
         image_results = await asyncio.gather(*image_tasks)
@@ -175,6 +177,7 @@ async def generate_video(
             audio_path=Path(session.audio_path),
             output_dir=session_dir / "video",
             alignment=session.alignment,
+            use_animated=payload.use_animated,
         )
         session.video_path = str(video_path)
         session.status = "video_done"
@@ -213,6 +216,7 @@ async def generate_all(
         session.status = "images_generating"
         await db.flush()
         image_style = session.image_style
+        image_provider = session.image_provider or "fuseapi"
         image_tasks = []
         for i, section in enumerate(content.get("sections", [])):
             prompts = section.get("image_prompts") or [section.get("image_prompt", "")]
@@ -223,6 +227,7 @@ async def generate_all(
                             prompt=prompt,
                             output_path=images_dir / f"scene_{i:02d}_{j:02d}.jpg",
                             style=image_style,
+                            provider=image_provider,
                         )
                     )
         image_results = await asyncio.gather(*image_tasks)
@@ -269,6 +274,7 @@ async def generate_all(
             audio_path=audio_path,
             output_dir=session_dir / "video",
             alignment=alignment,
+            use_animated=payload.use_animated,
         )
         session.video_path = str(video_path)
         session.status = "video_done"
@@ -310,3 +316,42 @@ async def generate_section_audio(
 
     audio_url = f"/api/files/session_{session.id}/audio/section_{payload.section_index}.wav"
     return GenerateSectionAudioResponse(audio_url=audio_url)
+
+
+@router.post("/generate-animated-clips")
+async def generate_animated_clips_endpoint(
+    payload: SessionIdRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate animated video clips from session images using Grok Imagine API."""
+    from app.services.animated_video import generate_animated_clips
+
+    session = await _get_session(payload.session_id, db)
+    if not session.image_paths:
+        raise HTTPException(
+            status_code=400, detail="No images. Run image generation first."
+        )
+
+    session_dir = Path(session.output_dir)
+
+    try:
+        clip_paths = await generate_animated_clips(
+            image_paths=session.image_paths,
+            output_dir=session_dir,
+        )
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=502, detail=f"Clip generation failed: {exc}"
+        ) from exc
+
+    clip_urls = [
+        f"/api/files/{p.replace('output/', '')}" for p in clip_paths
+    ]
+
+    return {
+        "session_id": session.id,
+        "clips": clip_urls,
+        "count": len(clip_urls),
+        "message": f"Generated {len(clip_urls)} animated clips",
+    }

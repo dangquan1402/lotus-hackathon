@@ -62,6 +62,9 @@ class LearningSession(Base):
     # Per-session image style override
     image_style: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    # Image generation provider: "fuseapi" (default) or "grok"
+    image_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
     # Error tracking
     error_message: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 

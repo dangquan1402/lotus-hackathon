@@ -46,6 +46,9 @@ class TopicExploreRequest(BaseModel):
         default="short", description="Content mode: 'short' (1-2 min) or 'long' (5-8 min)"
     )
     image_style: str | None = Field(default=None, description="Per-lesson image style override")
+    image_provider: str | None = Field(
+        default=None, description="Image provider: 'fuseapi' (default) or 'grok'"
+    )
     session_id: int | None = Field(default=None, description="Resume from an assessed session")
 
 
@@ -100,6 +103,10 @@ class GenerateVoiceResponse(StepResponse):
 
 class GenerateVideoRequest(BaseModel):
     session_id: int = Field(..., gt=0)
+    use_animated: bool = Field(
+        default=False,
+        description="Use animated .mp4 clips instead of static images",
+    )
 
 
 class GenerateVideoResponse(StepResponse):

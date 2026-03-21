@@ -265,4 +265,18 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     }),
+
+  startChat: (data: { session_id: number }) =>
+    request<{ thread_id: string; welcome_message: string }>('/api/chat/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  sendChatMessage: (data: { thread_id: string; message: string }) =>
+    request<{ response: string; sources: { url: string; title: string }[] }>('/api/chat/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
 };

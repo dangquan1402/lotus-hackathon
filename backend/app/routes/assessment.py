@@ -70,6 +70,7 @@ async def start_assessment(
         "topic": payload.topic,
         "search_results": search_results,
         "user_profile": {
+            "user_id": user.id,
             "interests": user.interests or [],
             "learning_style": user.learning_style,
             "expertise_level": user.expertise_level,

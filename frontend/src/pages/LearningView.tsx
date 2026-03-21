@@ -4,8 +4,9 @@ import { api, type Session } from '../api/client';
 import VideoPlayer from '../components/VideoPlayer';
 import SlideViewer from '../components/SlideViewer';
 import QuizPanel from '../components/QuizPanel';
+import MindMap from '../components/MindMap';
 
-type Tab = 'video' | 'slides' | 'quiz';
+type Tab = 'video' | 'slides' | 'quiz' | 'mindmap';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -37,6 +38,22 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
           d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'mindmap',
+    label: 'Mind Map',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M12 12m-2 0a2 2 0 104 0 2 2 0 10-4 0" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M12 2v8m0 4v8M2 12h8m4 0h8" />
+        <circle cx="4" cy="4" r="1.5" strokeWidth={2} />
+        <circle cx="20" cy="4" r="1.5" strokeWidth={2} />
+        <circle cx="4" cy="20" r="1.5" strokeWidth={2} />
+        <circle cx="20" cy="20" r="1.5" strokeWidth={2} />
       </svg>
     ),
   },
@@ -347,6 +364,59 @@ export default function LearningView() {
                 </div>
               </div>
             )}
+
+            {/* Concepts Learned */}
+            {session.concepts_learned && session.concepts_learned.length > 0 && (
+              <div>
+                <p className="text-xs uppercase tracking-wider font-semibold mb-2.5" style={{ color: 'var(--muted)' }}>
+                  Concepts Learned
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {session.concepts_learned.map((concept, i) => (
+                    <span
+                      key={i}
+                      className="text-xs font-medium px-2.5 py-1 rounded-full"
+                      style={{ background: 'rgba(30,58,47,0.08)', color: 'var(--forest)', border: '1px solid rgba(30,58,47,0.15)' }}
+                    >
+                      {concept}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sources / References */}
+            {session.search_results && session.search_results.length > 0 && (
+              <div>
+                <p className="text-xs uppercase tracking-wider font-semibold mb-2.5" style={{ color: 'var(--muted)' }}>
+                  Sources ({session.search_results.length})
+                </p>
+                <div className="space-y-1.5">
+                  {session.search_results.map((source, i) => (
+                    <a
+                      key={i}
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-2 rounded-lg px-3 py-2 transition-all hover:-translate-y-0.5 group"
+                      style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+                    >
+                      <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 transition-colors" style={{ color: 'var(--muted)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate group-hover:underline" style={{ color: 'var(--text)' }}>
+                          {source.title || new URL(source.url).hostname}
+                        </p>
+                        <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>
+                          {new URL(source.url).hostname}
+                        </p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </aside>
 
@@ -401,11 +471,19 @@ export default function LearningView() {
                     : undefined
                 }
                 sections={sections}
+                imagePaths={session.image_paths ?? undefined}
                 onSlidesGenerated={(url) => handleSessionUpdate({ slides_path: url })}
               />
             )}
             {activeTab === 'quiz' && (
               <QuizPanel sessionId={numericSessionId} />
+            )}
+            {activeTab === 'mindmap' && (
+              <MindMap
+                topic={session.topic}
+                sections={sections}
+                concepts={session.concepts_learned ?? undefined}
+              />
             )}
           </div>
         </main>

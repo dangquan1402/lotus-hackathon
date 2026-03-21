@@ -1,6 +1,7 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type Session, type ContentMode, type ImageStyle } from '../api/client';
+import { api, type Session, type ContentMode, type ImageStyle, type AssessmentQuestion } from '../api/client';
+import KnowledgeGraph from '../components/KnowledgeGraph';
 
 const IMAGE_STYLE_PILLS: { value: ImageStyle; label: string }[] = [
   { value: 'cartoon', label: 'Cartoon' },
@@ -14,6 +15,7 @@ const IMAGE_STYLE_PILLS: { value: ImageStyle; label: string }[] = [
 
 const LOADING_STEPS = [
   { label: 'Searching the web…', duration: 3000 },
+  { label: 'Analyzing your knowledge…', duration: 3000 },
   { label: 'Synthesizing content…', duration: 4000 },
   { label: 'Generating learning materials…', duration: 3000 },
 ];
@@ -32,6 +34,14 @@ export default function TopicExplore() {
   const [imageStyle, setImageStyle] = useState<ImageStyle>(
     (localStorage.getItem('lotus_image_style') as ImageStyle | null) ?? 'cartoon'
   );
+
+  const [showGraph, setShowGraph] = useState(false);
+
+  // Assessment state
+  const [assessmentPhase, setAssessmentPhase] = useState<'idle' | 'assessing' | 'submitting'>('idle');
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (userId) {
@@ -73,12 +83,57 @@ export default function TopicExplore() {
     setError(null);
     try {
       localStorage.setItem('lotus_image_style', imageStyle);
-      const result = await api.exploreTopic({ user_id: userId, topic: topic.trim(), mode, image_style: imageStyle });
-      navigate(`/learn/${result.session_id}`);
+      // Step 1: Start assessment
+      const assessment = await api.startAssessment({ user_id: userId, topic: topic.trim() });
+      setThreadId(assessment.thread_id);
+      setQuestions(assessment.questions);
+      setAnswers({});
+      setAssessmentPhase('assessing');
+      setLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to explore topic. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to start assessment.');
       setLoading(false);
     }
+  }
+
+  async function handleAssessmentSubmit(finalAnswers?: Record<string, string>) {
+    if (!threadId) return;
+    setAssessmentPhase('submitting');
+    setLoading(true);
+    try {
+      // Step 2: Submit answers (use finalAnswers if provided, fallback to state)
+      const result = await api.submitAssessment({ thread_id: threadId, answers: finalAnswers ?? answers });
+      // Step 3: Generate content from assessed session
+      await api.exploreTopic({
+        user_id: userId,
+        topic: topic.trim(),
+        mode,
+        image_style: imageStyle,
+        session_id: result.session_id,
+      });
+      navigate(`/learn/${result.session_id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate content.');
+      setAssessmentPhase('idle');
+      setLoading(false);
+    }
+  }
+
+  function handleSkipAssessment() {
+    // Skip assessment, go directly to content generation
+    setAssessmentPhase('idle');
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        localStorage.setItem('lotus_image_style', imageStyle);
+        const result = await api.exploreTopic({ user_id: userId, topic: topic.trim(), mode, image_style: imageStyle });
+        navigate(`/learn/${result.session_id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to explore topic.');
+        setLoading(false);
+      }
+    })();
   }
 
   function handleLogout() {
@@ -89,30 +144,21 @@ export default function TopicExplore() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
-      {/* Top bar */}
-      <header className="flex items-center justify-between px-6 py-4"
-        style={{ background: 'var(--forest)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: 'rgba(200,150,62,0.25)' }}>
-            <span className="text-lg">💎</span>
-          </div>
-          <span className="font-bold text-lg" style={{ fontFamily: "'Playfair Display', serif", color: '#fdf8f0' }}>
-            Lotus
-          </span>
-        </div>
+      {/* Compact top bar */}
+      <header className="flex items-center justify-end px-6 py-3"
+        style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
               style={{ background: 'var(--gold)', color: '#fff' }}>
               {userName.charAt(0).toUpperCase()}
             </div>
-            <span className="text-sm hidden sm:block" style={{ color: 'rgba(253,248,240,0.8)' }}>{userName}</span>
+            <span className="text-sm" style={{ color: 'var(--muted)' }}>{userName}</span>
           </div>
           <button
             onClick={handleLogout}
             className="text-sm transition-colors"
-            style={{ color: 'rgba(253,248,240,0.5)' }}
+            style={{ color: 'var(--muted)' }}
           >
             Sign out
           </button>
@@ -121,7 +167,16 @@ export default function TopicExplore() {
 
       {/* Main content */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
-        {loading ? (
+        {assessmentPhase === 'assessing' ? (
+          <AssessmentPanel
+            topic={topic}
+            questions={questions}
+            answers={answers}
+            setAnswers={setAnswers}
+            onSubmit={(finalAnswers) => handleAssessmentSubmit(finalAnswers)}
+            onSkip={handleSkipAssessment}
+          />
+        ) : loading ? (
           <LoadingState stepIndex={stepIndex} topic={topic} />
         ) : (
           <>
@@ -137,7 +192,41 @@ export default function TopicExplore() {
               userName={userName}
             />
             {sessions.length > 0 && (
-              <SessionHistory sessions={sessions} />
+              <>
+                {sessions.some((s) => s.concepts_learned && s.concepts_learned.length > 0) && (
+                  <div className="w-full max-w-2xl mt-12">
+                    <button
+                      type="button"
+                      onClick={() => setShowGraph((v) => !v)}
+                      className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all hover:-translate-y-0.5"
+                      style={{
+                        background: showGraph ? 'var(--forest)' : 'var(--surface)',
+                        color: showGraph ? '#fdf8f0' : 'var(--forest)',
+                        border: '1px solid var(--border)',
+                        boxShadow: '0 1px 4px rgba(30,58,47,0.06)',
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="4" cy="4" r="2" fill="currentColor" opacity="0.8" />
+                        <circle cx="12" cy="4" r="1.5" fill="currentColor" opacity="0.6" />
+                        <circle cx="8" cy="12" r="1.5" fill="currentColor" opacity="0.6" />
+                        <circle cx="12" cy="11" r="2" fill="currentColor" opacity="0.8" />
+                        <line x1="5.5" y1="5" x2="7" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
+                        <line x1="5.5" y1="4" x2="10.5" y2="4" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
+                        <line x1="9" y1="12" x2="10.5" y2="11.5" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
+                      </svg>
+                      Knowledge Graph
+                    </button>
+                    {showGraph && (
+                      <div className="mt-4 rounded-2xl overflow-hidden"
+                        style={{ border: '1px solid var(--border)', boxShadow: '0 2px 12px rgba(30,58,47,0.06)' }}>
+                        <KnowledgeGraph sessions={sessions} />
+                      </div>
+                    )}
+                  </div>
+                )}
+                <SessionHistory sessions={sessions} />
+              </>
             )}
           </>
         )}
@@ -297,11 +386,18 @@ function SessionHistory({ sessions }: { sessions: Session[] }) {
   const navigate = useNavigate();
 
   const statusLabel: Record<string, { text: string; style: React.CSSProperties }> = {
-    complete: { text: 'Content Ready', style: { color: 'var(--forest)', background: 'rgba(30,58,47,0.1)', border: '1px solid rgba(30,58,47,0.2)' } },
-    video_done: { text: 'Video Ready', style: { color: 'var(--forest)', background: 'rgba(30,58,47,0.1)', border: '1px solid rgba(30,58,47,0.2)' } },
-    error: { text: 'Error', style: { color: 'var(--rose)', background: 'rgba(196,92,92,0.1)', border: '1px solid rgba(196,92,92,0.2)' } },
     searching: { text: 'Searching…', style: { color: 'var(--gold)', background: 'rgba(200,150,62,0.1)', border: '1px solid rgba(200,150,62,0.2)' } },
     generating: { text: 'Generating…', style: { color: 'var(--gold)', background: 'rgba(200,150,62,0.1)', border: '1px solid rgba(200,150,62,0.2)' } },
+    assessed: { text: 'Assessed', style: { color: 'var(--sky, #0ea5e9)', background: 'rgba(14,165,233,0.1)', border: '1px solid rgba(14,165,233,0.2)' } },
+    complete: { text: 'Content Ready', style: { color: 'var(--forest)', background: 'rgba(30,58,47,0.1)', border: '1px solid rgba(30,58,47,0.2)' } },
+    images_generating: { text: 'Creating Images…', style: { color: 'var(--gold)', background: 'rgba(200,150,62,0.1)', border: '1px solid rgba(200,150,62,0.2)' } },
+    images_done: { text: 'Images Ready', style: { color: 'var(--forest)', background: 'rgba(30,58,47,0.1)', border: '1px solid rgba(30,58,47,0.2)' } },
+    audio_generating: { text: 'Creating Audio…', style: { color: 'var(--gold)', background: 'rgba(200,150,62,0.1)', border: '1px solid rgba(200,150,62,0.2)' } },
+    audio_done: { text: 'Audio Ready', style: { color: 'var(--forest)', background: 'rgba(30,58,47,0.1)', border: '1px solid rgba(30,58,47,0.2)' } },
+    aligned: { text: 'Aligned', style: { color: 'var(--forest)', background: 'rgba(30,58,47,0.1)', border: '1px solid rgba(30,58,47,0.2)' } },
+    video_rendering: { text: 'Rendering Video…', style: { color: 'var(--gold)', background: 'rgba(200,150,62,0.1)', border: '1px solid rgba(200,150,62,0.2)' } },
+    video_done: { text: 'Video Ready', style: { color: 'var(--forest)', background: 'rgba(30,58,47,0.1)', border: '1px solid rgba(30,58,47,0.2)' } },
+    error: { text: 'Error', style: { color: 'var(--rose)', background: 'rgba(196,92,92,0.1)', border: '1px solid rgba(196,92,92,0.2)' } },
   };
 
   return (
@@ -332,6 +428,202 @@ function SessionHistory({ sessions }: { sessions: Session[] }) {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function AssessmentPanel({
+  topic,
+  questions,
+  answers,
+  setAnswers,
+  onSubmit,
+  onSkip,
+}: {
+  topic: string;
+  questions: AssessmentQuestion[];
+  answers: Record<string, string>;
+  setAnswers: (a: Record<string, string>) => void;
+  onSubmit: (finalAnswers: Record<string, string>) => void;
+  onSkip: () => void;
+}) {
+  const [currentQ, setCurrentQ] = useState(0);
+  const [freeText, setFreeText] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom when new messages appear
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [currentQ, answers]);
+
+  const isLastQuestion = currentQ >= questions.length - 1;
+  const currentQuestion = questions[currentQ];
+  const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
+
+  function handleSelectOption(opt: string) {
+    const updated = { ...answers, [currentQuestion.id]: opt };
+    setAnswers(updated);
+    // Auto-advance after a short delay for multiple choice
+    setTimeout(() => {
+      if (isLastQuestion) {
+        onSubmit(updated);
+      } else {
+        setCurrentQ((prev) => prev + 1);
+        setFreeText('');
+      }
+    }, 400);
+  }
+
+  function handleFreeTextSubmit() {
+    if (!freeText.trim()) return;
+    const updated = { ...answers, [currentQuestion.id]: freeText.trim() };
+    setAnswers(updated);
+    if (isLastQuestion) {
+      onSubmit(updated);
+    } else {
+      setCurrentQ((prev) => prev + 1);
+      setFreeText('');
+    }
+  }
+
+  // Build chat history: pairs of (question bubble, answer bubble) for answered questions
+  const chatHistory: { type: 'question' | 'answer'; text: string }[] = [];
+  for (let i = 0; i < currentQ; i++) {
+    chatHistory.push({ type: 'question', text: questions[i].question });
+    chatHistory.push({ type: 'answer', text: answers[questions[i].id] || '' });
+  }
+
+  return (
+    <div className="w-full max-w-2xl flex flex-col" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
+      {/* Header */}
+      <div className="text-center mb-4 flex-shrink-0">
+        <p className="text-sm font-medium" style={{ color: 'var(--muted)' }}>
+          Personalizing your lesson on
+        </p>
+        <p className="font-semibold italic" style={{ color: 'var(--gold)' }}>"{topic}"</p>
+      </div>
+
+      {/* Chat area */}
+      <div className="flex-1 overflow-y-auto px-1 space-y-4 pb-4" style={{ scrollbarWidth: 'thin' }}>
+        {/* Intro message */}
+        <div className="flex gap-3">
+          <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm"
+            style={{ background: 'rgba(30,58,47,0.12)' }}>
+            💎
+          </div>
+          <div className="rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%]"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-sm" style={{ color: 'var(--text)' }}>
+              Let me ask you a few quick questions so I can tailor this lesson to your level.
+            </p>
+          </div>
+        </div>
+
+        {/* Previous Q&A pairs */}
+        {chatHistory.map((msg, i) =>
+          msg.type === 'question' ? (
+            <div key={i} className="flex gap-3">
+              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm"
+                style={{ background: 'rgba(30,58,47,0.12)' }}>
+                💎
+              </div>
+              <div className="rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%]"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-sm" style={{ color: 'var(--text)' }}>{msg.text}</p>
+              </div>
+            </div>
+          ) : (
+            <div key={i} className="flex justify-end">
+              <div className="rounded-2xl rounded-tr-md px-4 py-3 max-w-[85%]"
+                style={{ background: 'var(--forest)', color: '#fdf8f0' }}>
+                <p className="text-sm">{msg.text}</p>
+              </div>
+            </div>
+          )
+        )}
+
+        {/* Current question */}
+        {currentQuestion && (
+          <>
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm"
+                style={{ background: 'rgba(30,58,47,0.12)' }}>
+                💎
+              </div>
+              <div className="rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%]"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-sm" style={{ color: 'var(--text)' }}>{currentQuestion.question}</p>
+                <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                  Question {currentQ + 1} of {questions.length}
+                </p>
+              </div>
+            </div>
+
+            {/* Answer options */}
+            {hasOptions ? (
+              <div className="flex flex-wrap gap-2 pl-11">
+                {currentQuestion.options!.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => handleSelectOption(opt)}
+                    className="px-4 py-2.5 rounded-2xl text-sm font-medium transition-all text-left hover:-translate-y-0.5"
+                    style={{
+                      background: 'var(--bg)',
+                      color: 'var(--text)',
+                      border: '1px solid var(--border)',
+                      boxShadow: '0 1px 3px rgba(30,58,47,0.06)',
+                    }}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </>
+        )}
+
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* Input area */}
+      <div className="flex-shrink-0 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+        {currentQuestion && !hasOptions ? (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={freeText}
+              onChange={(e) => setFreeText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleFreeTextSubmit()}
+              placeholder="Type your answer…"
+              className="flex-1 rounded-xl px-4 py-3 text-sm outline-none"
+              style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={handleFreeTextSubmit}
+              disabled={!freeText.trim()}
+              className="px-4 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-40"
+              style={{ background: 'var(--forest)', color: '#fdf8f0' }}
+            >
+              Send
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-center py-2" style={{ color: 'var(--muted)' }}>
+            Select an option above to continue
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={onSkip}
+          className="w-full text-xs font-medium mt-2 py-2 transition-colors"
+          style={{ color: 'var(--muted)' }}
+        >
+          Skip assessment and generate directly →
+        </button>
       </div>
     </div>
   );

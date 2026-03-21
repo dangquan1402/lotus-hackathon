@@ -10,7 +10,7 @@ from langgraph.types import interrupt
 
 # Reuse FuseAPI config loading from content.py
 CONFIG_PATH = Path.home() / ".fuseapi" / "config.json"
-MODEL = "gemini-3-flash-preview"
+MODELS = ["gemini-3-flash-preview", "claude-sonnet-4-6", "gpt-5.1"]
 
 
 def _load_config():
@@ -85,16 +85,27 @@ Respond with ONLY valid JSON (no markdown fences):
 Mix question types: some multiple choice, some with options like "Yes / Somewhat / No", \
 and one open-ended about what specifically interests them."""
 
-    resp = httpx.post(
-        f"{endpoint}/v1/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}"},
-        json={
-            "model": MODEL,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7,
-        },
-        timeout=60,
-    )
+    import time
+
+    resp = None
+    for model in MODELS:
+        for attempt in range(2):
+            resp = httpx.post(
+                f"{endpoint}/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.7,
+                },
+                timeout=120,
+            )
+            if resp.status_code in (429, 529) and attempt < 1:
+                time.sleep(3)
+                continue
+            break
+        if resp.status_code == 200:
+            break
     resp.raise_for_status()
 
     raw = resp.json()["choices"][0]["message"]["content"].strip()
@@ -138,16 +149,23 @@ Write a brief summary (2-3 sentences) of:
 
 This summary will be used to personalize their lesson content. Be specific and actionable."""
 
-    resp = httpx.post(
-        f"{endpoint}/v1/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}"},
-        json={
-            "model": MODEL,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.5,
-        },
-        timeout=30,
-    )
+    import time
+
+    resp = None
+    for model in MODELS:
+        resp = httpx.post(
+            f"{endpoint}/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.5,
+            },
+            timeout=60,
+        )
+        if resp.status_code == 200:
+            break
+        time.sleep(2)
     resp.raise_for_status()
 
     summary = resp.json()["choices"][0]["message"]["content"].strip()

@@ -8,7 +8,7 @@ import httpx
 from app.schemas.learning import GeneratedContent
 
 CONFIG_PATH = Path.home() / ".fuseapi" / "config.json"
-MODEL = "gemini-3-flash-preview"
+MODELS = ["gemini-3-flash-preview", "claude-sonnet-4-6", "gpt-5.1"]
 
 
 def _load_fuseapi_config() -> tuple[str, str]:
@@ -237,25 +237,31 @@ async def asynthesize_content(
     user_prompt = _build_user_prompt(topic, search_results)
 
     async with httpx.AsyncClient(timeout=180) as client:
-        for attempt in range(3):
-            response = await client.post(
-                f"{endpoint}/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "model": MODEL,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "temperature": 0.7,
-                },
-            )
-            if response.status_code == 429 and attempt < 2:
-                wait = (attempt + 1) * 5
-                await asyncio.sleep(wait)
-                continue
-            response.raise_for_status()
-            break
+        response = None
+        for model in MODELS:
+            for attempt in range(2):
+                response = await client.post(
+                    f"{endpoint}/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "temperature": 0.7,
+                    },
+                )
+                if response.status_code in (429, 529) and attempt < 1:
+                    await asyncio.sleep(3)
+                    continue
+                break
+            if response.status_code == 200:
+                break
+        response.raise_for_status()
 
     data = response.json()
     raw_text: str = data["choices"][0]["message"]["content"].strip()
@@ -283,7 +289,7 @@ async def aextract_concepts(topic: str, content: GeneratedContent) -> list[str]:
             f"{endpoint}/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
             json={
-                "model": MODEL,
+                "model": MODELS[0],
                 "messages": [
                     {
                         "role": "system",

@@ -1,7 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import ProfileSetup from './pages/ProfileSetup';
 import TopicExplore from './pages/TopicExplore';
 import LearningView from './pages/LearningView';
+import Sidebar from './components/Sidebar';
+import { api } from './api/client';
 
 function getUserId(): number | null {
   const stored = localStorage.getItem('lotus_user_id');
@@ -16,6 +19,26 @@ function RequireUser({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AppLayout() {
+  const userId = getUserId();
+  const [sessionCount, setSessionCount] = useState(0);
+
+  useEffect(() => {
+    if (userId) {
+      api.listSessions(userId).then((s) => setSessionCount(s.length)).catch(() => {});
+    }
+  }, [userId]);
+
+  return (
+    <div className="flex min-h-screen" style={{ background: 'var(--bg)' }}>
+      <Sidebar sessionCount={sessionCount} />
+      <div className="flex-1 min-w-0">
+        <Outlet />
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -27,21 +50,15 @@ export default function App() {
           }
         />
         <Route
-          path="/explore"
           element={
             <RequireUser>
-              <TopicExplore />
+              <AppLayout />
             </RequireUser>
           }
-        />
-        <Route
-          path="/learn/:sessionId"
-          element={
-            <RequireUser>
-              <LearningView />
-            </RequireUser>
-          }
-        />
+        >
+          <Route path="/explore" element={<TopicExplore />} />
+          <Route path="/learn/:sessionId" element={<LearningView />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -39,6 +39,7 @@ export interface ExploreTopicRequest {
   topic: string;
   mode?: ContentMode;
   image_style?: ImageStyle;
+  session_id?: number;
 }
 
 export interface ExploreTopicResponse {
@@ -52,7 +53,7 @@ export interface Session {
   user_id: number;
   topic: string;
   status: string;
-  search_results?: unknown[];
+  search_results?: { url: string; title: string; markdown: string }[];
   generated_content?: {
     title: string;
     overview: string;
@@ -64,6 +65,10 @@ export interface Session {
   alignment?: Record<string, unknown>;
   video_path?: string;
   slides_path?: string;
+  image_style?: string;
+  concepts_learned?: string[];
+  assessment_qa?: { questions: AssessmentQuestion[]; answers: Record<string, string> };
+  assessment_summary?: string;
   error_message?: string;
   created_at: string;
   updated_at: string;
@@ -108,6 +113,34 @@ export interface QuizResponse {
 
 export interface SubmitQuizRequest {
   answers: number[];
+}
+
+export interface StartAssessmentRequest {
+  user_id: number;
+  topic: string;
+}
+
+export interface AssessmentQuestion {
+  id: string;
+  question: string;
+  type: string;
+  options?: string[];
+  purpose?: string;
+}
+
+export interface StartAssessmentResponse {
+  thread_id: string;
+  questions: AssessmentQuestion[];
+}
+
+export interface SubmitAssessmentRequest {
+  thread_id: string;
+  answers: Record<string, string>;
+}
+
+export interface SubmitAssessmentResponse {
+  assessment_summary: string;
+  session_id: number;
 }
 
 export interface QuizResult {
@@ -197,6 +230,20 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answers }),
+    }),
+
+  startAssessment: (data: StartAssessmentRequest) =>
+    request<StartAssessmentResponse>('/api/assessment/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
+  submitAssessment: (data: SubmitAssessmentRequest) =>
+    request<SubmitAssessmentResponse>('/api/assessment/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     }),
 
   getVideoUrl: (sessionId: number) =>

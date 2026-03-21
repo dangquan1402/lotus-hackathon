@@ -46,6 +46,7 @@ class TopicExploreRequest(BaseModel):
         default="short", description="Content mode: 'short' (1-2 min) or 'long' (5-8 min)"
     )
     image_style: str | None = Field(default=None, description="Per-lesson image style override")
+    session_id: int | None = Field(default=None, description="Resume from an assessed session")
 
 
 class TopicExploreResponse(BaseModel):
@@ -118,6 +119,7 @@ class SessionSummary(BaseModel):
     image_style: str | None = None
     video_path: str | None = None
     slides_path: str | None = None
+    concepts_learned: list[str] | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -132,11 +134,15 @@ class SessionResponse(BaseModel):
     topic: str
     status: str
     image_style: str | None = None
+    search_results: list[dict] | None = None
     generated_content: GeneratedContent | None = None
     image_paths: list[str] | None = None
     video_path: str | None = None
     slides_path: str | None = None
     error_message: str | None = None
+    concepts_learned: list[str] | None = None
+    assessment_qa: dict | None = None
+    assessment_summary: str | None = None
     created_at: datetime
     updated_at: datetime
 

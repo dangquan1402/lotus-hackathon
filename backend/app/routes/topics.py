@@ -49,16 +49,41 @@ async def explore_topic(
     # Resolve image style: per-lesson override > user profile > fallback
     resolved_image_style = payload.image_style or user.image_style or "cartoon"
 
-    # Create session in searching state
-    session = LearningSession(
-        user_id=user.id,
-        topic=payload.topic,
-        status="searching",
-        image_style=resolved_image_style,
-    )
-    db.add(session)
-    await db.flush()
-    await db.refresh(session)
+    # If resuming from an assessed session
+    if payload.session_id:
+        result = await db.execute(
+            select(LearningSession).where(LearningSession.id == payload.session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+        if session.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Session does not belong to user",
+            )
+        if session.status != "assessed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Session is not in assessed state",
+            )
+
+        session.image_style = resolved_image_style
+        search_results = session.search_results or []
+        assessment_summary = session.assessment_summary
+    else:
+        # Create session in searching state
+        session = LearningSession(
+            user_id=user.id,
+            topic=payload.topic,
+            status="searching",
+            image_style=resolved_image_style,
+        )
+        db.add(session)
+        await db.flush()
+        await db.refresh(session)
+        search_results = None
+        assessment_summary = None
 
     try:
         # Fetch learning history for personalization
@@ -77,15 +102,17 @@ async def explore_topic(
             for row in history_result.all()
         ]
 
-        # Search web
-        search_results = await search_topic(
-            payload.topic, user.interests or [], scrape=(payload.mode == "long")
-        )
-        session.search_results = search_results
+        if search_results is None:
+            # Search web (only if not resuming from assessed session)
+            search_results = await search_topic(
+                payload.topic, user.interests or [], scrape=(payload.mode == "long")
+            )
+            session.search_results = search_results
+
         session.status = "generating"
         await db.flush()
 
-        # Synthesize content (with learning history context)
+        # Synthesize content (pass assessment_summary)
         generated = await asynthesize_content(
             topic=payload.topic,
             search_results=search_results,
@@ -97,6 +124,7 @@ async def explore_topic(
             learning_history=learning_history if learning_history else None,
             age_group=user.age_group,
             goal=user.goal,
+            assessment_summary=assessment_summary,
         )
 
         session.generated_content = generated.model_dump()
@@ -148,6 +176,7 @@ async def list_sessions(
             LearningSession.image_style,
             LearningSession.video_path,
             LearningSession.slides_path,
+            LearningSession.concepts_learned,
             LearningSession.created_at,
             LearningSession.updated_at,
         )

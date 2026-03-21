@@ -47,7 +47,7 @@ class TopicExploreRequest(BaseModel):
     )
     image_style: str | None = Field(default=None, description="Per-lesson image style override")
     image_provider: str | None = Field(
-        default=None, description="Image provider: 'fuseapi' (default) or 'grok'"
+        default=None, description="Image provider: 'grok' (default) or 'fuseapi'"
     )
     session_id: int | None = Field(default=None, description="Resume from an assessed session")
 

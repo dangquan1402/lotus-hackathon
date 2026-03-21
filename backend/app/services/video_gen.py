@@ -101,22 +101,28 @@ async def agenerate_video(
                 }
             )
 
-    # Compensate for TransitionSeries overlap: each transition eats into
-    # adjacent scenes, shortening the total. Add overlap time to scenes.
+    # Compensate for TransitionSeries overlap and frame rounding:
+    # Remotion total = sum(scene_frames) - (N-1)*transition_frames
+    # Each scene also loses up to 0.5 frames from Math.round().
+    # Add overlap + 1s safety buffer to the last scene so video >= audio.
     transition_frames = 15
     fps_val = 30
     num_transitions = max(len(scenes) - 1, 0)
     total_overlap_s = num_transitions * (transition_frames / fps_val)
     if scenes and total_overlap_s > 0:
-        # Distribute overlap evenly across all scenes
         pad_per_scene = total_overlap_s / len(scenes)
         for sc in scenes:
             sc["duration_s"] = round(sc["duration_s"] + pad_per_scene, 2)
-            # Also pad clip_images durations proportionally
             if sc.get("clip_images"):
                 clip_pad = pad_per_scene / len(sc["clip_images"])
                 for ci in sc["clip_images"]:
                     ci["duration_s"] = round(ci["duration_s"] + clip_pad, 2)
+    # Add 1s buffer to last scene to cover alignment-to-audio gap + rounding
+    if scenes:
+        scenes[-1]["duration_s"] = round(scenes[-1]["duration_s"] + 1.0, 2)
+        if scenes[-1].get("clip_images"):
+            last_clips = scenes[-1]["clip_images"]
+            last_clips[-1]["duration_s"] = round(last_clips[-1]["duration_s"] + 1.0, 2)
 
     render_config = {
         "fps": 30,

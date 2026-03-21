@@ -3,6 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import ProfileSetup from './pages/ProfileSetup';
 import TopicExplore from './pages/TopicExplore';
 import LearningView from './pages/LearningView';
+import MyCourses from './pages/MyCourses';
+import QuizHub from './pages/QuizHub';
+import Analytics from './pages/Analytics';
+import Flashcards from './pages/Flashcards';
+import StudyPlan from './pages/StudyPlan';
 import Sidebar from './components/Sidebar';
 import { api } from './api/client';
 
@@ -57,7 +62,12 @@ export default function App() {
           }
         >
           <Route path="/explore" element={<TopicExplore />} />
+          <Route path="/courses" element={<MyCourses />} />
+          <Route path="/quiz" element={<QuizHub />} />
           <Route path="/learn/:sessionId" element={<LearningView />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/flashcards" element={<Flashcards />} />
+          <Route path="/study-plan" element={<StudyPlan />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

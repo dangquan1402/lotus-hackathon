@@ -19,7 +19,7 @@ const NAV_ITEMS = [
       {
         id: 'courses',
         label: 'My Courses',
-        path: '/explore',
+        path: '/courses',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <rect x="3" y="3" width="7" height="7" rx="1" strokeWidth={2} />
@@ -33,7 +33,7 @@ const NAV_ITEMS = [
       {
         id: 'quiz',
         label: 'Quiz',
-        path: '/explore',
+        path: '/quiz',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -44,7 +44,7 @@ const NAV_ITEMS = [
       {
         id: 'flashcards',
         label: 'Flashcards',
-        path: '/explore',
+        path: '/flashcards',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <rect x="3" y="5" width="18" height="14" rx="2" strokeWidth={2} />
@@ -60,7 +60,7 @@ const NAV_ITEMS = [
       {
         id: 'analytics',
         label: 'Analytics',
-        path: '/explore',
+        path: '/analytics',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="9" strokeWidth={2} />
@@ -71,7 +71,7 @@ const NAV_ITEMS = [
       {
         id: 'study-plan',
         label: 'Study Plan',
-        path: '/explore',
+        path: '/study-plan',
         icon: (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="9" strokeWidth={2} />
@@ -130,7 +130,15 @@ export default function Sidebar({ sessionCount }: SidebarProps) {
                   item.id === 'dashboard'
                     ? location.pathname === '/explore'
                     : item.id === 'courses'
-                    ? location.pathname.startsWith('/learn')
+                    ? location.pathname === '/courses' || location.pathname.startsWith('/learn')
+                    : item.id === 'quiz'
+                    ? location.pathname === '/quiz'
+                    : item.id === 'flashcards'
+                    ? location.pathname === '/flashcards'
+                    : item.id === 'analytics'
+                    ? location.pathname === '/analytics'
+                    : item.id === 'study-plan'
+                    ? location.pathname === '/study-plan'
                     : false;
 
                 return (

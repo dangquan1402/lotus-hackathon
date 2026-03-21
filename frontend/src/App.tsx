@@ -7,7 +7,6 @@ import MyCourses from './pages/MyCourses';
 import QuizHub from './pages/QuizHub';
 import Analytics from './pages/Analytics';
 import Flashcards from './pages/Flashcards';
-import StudyPlan from './pages/StudyPlan';
 import Profile from './pages/Profile';
 import KnowledgeGraphPage from './pages/KnowledgeGraphPage';
 import Sidebar from './components/Sidebar';
@@ -69,7 +68,6 @@ export default function App() {
           <Route path="/learn/:sessionId" element={<LearningView />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/flashcards" element={<Flashcards />} />
-          <Route path="/study-plan" element={<StudyPlan />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/knowledge-graph" element={<KnowledgeGraphPage />} />
         </Route>

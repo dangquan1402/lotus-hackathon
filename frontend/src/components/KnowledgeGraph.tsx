@@ -1,4 +1,5 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ForceGraph2D, { type ForceGraphMethods, type NodeObject } from 'react-force-graph-2d';
 
 interface SessionInput {
@@ -25,9 +26,11 @@ interface KnowledgeGraphProps {
 }
 
 export default function KnowledgeGraph({ sessions }: KnowledgeGraphProps) {
+  const navigate = useNavigate();
   const fgRef = useRef<ForceGraphMethods<NodeObject<GraphNode>> | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
 
   // Measure container
@@ -97,16 +100,37 @@ export default function KnowledgeGraph({ sessions }: KnowledgeGraphProps) {
 
   const isConnected = useCallback(
     (nodeId: string) => {
-      if (!hoveredNode) return true;
-      if (nodeId === hoveredNode) return true;
-      return adjacency.get(hoveredNode)?.has(nodeId) ?? false;
+      const activeNode = hoveredNode || selectedNode;
+      if (!activeNode) return true;
+      if (nodeId === activeNode) return true;
+      return adjacency.get(activeNode)?.has(nodeId) ?? false;
     },
-    [hoveredNode, adjacency],
+    [hoveredNode, selectedNode, adjacency],
   );
 
   const handleNodeHover = useCallback((node: NodeObject<GraphNode> | null) => {
     setHoveredNode(node?.id as string ?? null);
   }, []);
+
+  const handleNodeClick = useCallback(
+    (node: NodeObject<GraphNode>) => {
+      if (node.group === 'topic') {
+        // Extract session id from "topic-{id}"
+        const sessionId = (node.id as string).replace('topic-', '');
+        navigate(`/learn/${sessionId}`);
+      } else {
+        // Concept node: toggle selection and zoom into the cluster
+        const nodeId = node.id as string;
+        setSelectedNode((prev) => (prev === nodeId ? null : nodeId));
+        // Zoom to the clicked node and its neighbors
+        const x = node.x ?? 0;
+        const y = node.y ?? 0;
+        fgRef.current?.centerAt(x, y, 500);
+        fgRef.current?.zoom(3, 500);
+      }
+    },
+    [navigate],
+  );
 
   const handleEngineStop = useCallback(() => {
     fgRef.current?.zoomToFit(400, 40);
@@ -133,8 +157,8 @@ export default function KnowledgeGraph({ sessions }: KnowledgeGraphProps) {
       const connected = isConnected(node.id as string);
       const alpha = connected ? 1.0 : 0.15;
 
-      // Glow for hovered node
-      if (node.id === hoveredNode) {
+      // Glow for hovered or selected node
+      if (node.id === hoveredNode || node.id === selectedNode) {
         ctx.beginPath();
         ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
         ctx.fillStyle = isTopic
@@ -168,7 +192,7 @@ export default function KnowledgeGraph({ sessions }: KnowledgeGraphProps) {
       ctx.fillText(label, x, y + radius + 2);
       ctx.globalAlpha = 1;
     },
-    [hoveredNode, isConnected, colors],
+    [hoveredNode, selectedNode, isConnected, colors],
   );
 
   const nodePointerAreaPaint = useCallback(
@@ -186,13 +210,14 @@ export default function KnowledgeGraph({ sessions }: KnowledgeGraphProps) {
 
   const linkColor = useCallback(
     (link: { source?: string | { id?: string }; target?: string | { id?: string } }) => {
-      if (!hoveredNode) return 'rgba(30,58,47,0.12)';
+      const activeNode = hoveredNode || selectedNode;
+      if (!activeNode) return 'rgba(30,58,47,0.12)';
       const s = typeof link.source === 'string' ? link.source : link.source?.id ?? '';
       const t = typeof link.target === 'string' ? link.target : link.target?.id ?? '';
-      if (s === hoveredNode || t === hoveredNode) return 'rgba(30,58,47,0.4)';
+      if (s === activeNode || t === activeNode) return 'rgba(30,58,47,0.4)';
       return 'rgba(30,58,47,0.05)';
     },
-    [hoveredNode],
+    [hoveredNode, selectedNode],
   );
 
   return (
@@ -217,6 +242,7 @@ export default function KnowledgeGraph({ sessions }: KnowledgeGraphProps) {
         nodeCanvasObjectMode={() => 'replace'}
         nodePointerAreaPaint={nodePointerAreaPaint}
         onNodeHover={handleNodeHover}
+        onNodeClick={handleNodeClick}
         linkColor={linkColor}
         linkWidth={1.5}
         cooldownTicks={100}

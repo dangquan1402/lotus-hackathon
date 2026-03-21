@@ -19,7 +19,9 @@ export default function QuizHub() {
     async function fetchQuizzes() {
       try {
         const sessions = await api.listSessions(userId);
-        const completed = sessions.filter((s) => s.status === 'completed');
+        const completed = sessions.filter((s) =>
+          ['complete', 'completed', 'video_done', 'images_done', 'audio_done', 'aligned'].includes(s.status)
+        );
 
         const results: QuizSession[] = [];
         for (const s of completed) {

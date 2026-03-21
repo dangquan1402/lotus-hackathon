@@ -84,17 +84,6 @@ const NAV_ITEMS = [
           </svg>
         ),
       },
-      {
-        id: 'study-plan',
-        label: 'Study Plan',
-        path: '/study-plan',
-        icon: (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="9" strokeWidth={2} />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m-4-4h8" />
-          </svg>
-        ),
-      },
     ],
   },
 ];
@@ -170,8 +159,6 @@ export default function Sidebar({ sessionCount }: SidebarProps) {
                     ? location.pathname === '/analytics'
                     : item.id === 'knowledge-graph'
                     ? location.pathname === '/knowledge-graph'
-                    : item.id === 'study-plan'
-                    ? location.pathname === '/study-plan'
                     : false;
 
                 return (

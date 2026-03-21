@@ -26,6 +26,9 @@ async def create_user(payload: UserCreate, db: AsyncSession = Depends(get_db)) -
         learning_style=payload.learning_style,
         expertise_level=payload.expertise_level,
         perspective=payload.perspective,
+        age_group=payload.age_group,
+        goal=payload.goal,
+        image_style=payload.image_style,
     )
     db.add(user)
     await db.flush()

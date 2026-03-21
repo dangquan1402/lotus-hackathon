@@ -259,6 +259,13 @@ export const api = {
   getSlidesUrl: (sessionId: number) =>
     `${API_BASE}/api/files/slides/${sessionId}`,
 
+  updateUser: (userId: number, data: Partial<CreateUserRequest>) =>
+    request<User>(`/api/users/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
+
   loginUser: (name: string) =>
     request<User>('/api/users/login', {
       method: 'POST',

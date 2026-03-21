@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Session, type ContentMode, type ImageStyle, type AssessmentQuestion } from '../api/client';
-import KnowledgeGraph from '../components/KnowledgeGraph';
 
 const IMAGE_STYLE_PILLS: { value: ImageStyle; label: string }[] = [
   { value: 'cartoon', label: 'Cartoon' },
@@ -34,8 +33,6 @@ export default function TopicExplore() {
   const [imageStyle, setImageStyle] = useState<ImageStyle>(
     (localStorage.getItem('lotus_image_style') as ImageStyle | null) ?? 'cartoon'
   );
-
-  const [showGraph, setShowGraph] = useState(false);
 
   // Assessment state
   const [assessmentPhase, setAssessmentPhase] = useState<'idle' | 'assessing' | 'submitting'>('idle');
@@ -192,41 +189,7 @@ export default function TopicExplore() {
               userName={userName}
             />
             {sessions.length > 0 && (
-              <>
-                {sessions.some((s) => s.concepts_learned && s.concepts_learned.length > 0) && (
-                  <div className="w-full max-w-2xl mt-12">
-                    <button
-                      type="button"
-                      onClick={() => setShowGraph((v) => !v)}
-                      className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all hover:-translate-y-0.5"
-                      style={{
-                        background: showGraph ? 'var(--forest)' : 'var(--surface)',
-                        color: showGraph ? '#fdf8f0' : 'var(--forest)',
-                        border: '1px solid var(--border)',
-                        boxShadow: '0 1px 4px rgba(30,58,47,0.06)',
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="4" cy="4" r="2" fill="currentColor" opacity="0.8" />
-                        <circle cx="12" cy="4" r="1.5" fill="currentColor" opacity="0.6" />
-                        <circle cx="8" cy="12" r="1.5" fill="currentColor" opacity="0.6" />
-                        <circle cx="12" cy="11" r="2" fill="currentColor" opacity="0.8" />
-                        <line x1="5.5" y1="5" x2="7" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
-                        <line x1="5.5" y1="4" x2="10.5" y2="4" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
-                        <line x1="9" y1="12" x2="10.5" y2="11.5" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
-                      </svg>
-                      Knowledge Graph
-                    </button>
-                    {showGraph && (
-                      <div className="mt-4 rounded-2xl overflow-hidden"
-                        style={{ border: '1px solid var(--border)', boxShadow: '0 2px 12px rgba(30,58,47,0.06)' }}>
-                        <KnowledgeGraph sessions={sessions} />
-                      </div>
-                    )}
-                  </div>
-                )}
-                <SessionHistory sessions={sessions} />
-              </>
+              <SessionHistory sessions={sessions} />
             )}
           </>
         )}

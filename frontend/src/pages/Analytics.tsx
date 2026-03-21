@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, Session } from '../api/client';
 
 export default function Analytics() {
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -156,8 +158,9 @@ export default function Analytics() {
                         borderColor: 'var(--card)',
                       }}
                     />
-                    <div
-                      className="flex-1 rounded-xl p-4"
+                    <button
+                      onClick={() => navigate(`/learn/${s.id}`)}
+                      className="flex-1 rounded-xl p-4 text-left transition-all hover:-translate-y-1 hover:shadow-lg cursor-pointer"
                       style={{
                         background: 'var(--card)',
                         border: '1px solid var(--border)',
@@ -182,7 +185,7 @@ export default function Analytics() {
                           year: 'numeric',
                         })}
                       </p>
-                    </div>
+                    </button>
                   </div>
                 );
               })}

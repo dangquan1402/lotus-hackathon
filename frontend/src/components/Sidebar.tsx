@@ -69,6 +69,22 @@ const NAV_ITEMS = [
         ),
       },
       {
+        id: 'knowledge-graph',
+        label: 'Knowledge Graph',
+        path: '/knowledge-graph',
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="6" cy="6" r="2.5" strokeWidth={1.5} />
+            <circle cx="18" cy="6" r="2" strokeWidth={1.5} />
+            <circle cx="12" cy="18" r="2" strokeWidth={1.5} />
+            <circle cx="18" cy="16" r="2.5" strokeWidth={1.5} />
+            <line x1="8" y1="7.5" x2="10.5" y2="16.5" stroke="currentColor" strokeWidth={1} opacity={0.5} />
+            <line x1="8" y1="6" x2="16" y2="6" stroke="currentColor" strokeWidth={1} opacity={0.5} />
+            <line x1="13.5" y1="18" x2="16" y2="17" stroke="currentColor" strokeWidth={1} opacity={0.5} />
+          </svg>
+        ),
+      },
+      {
         id: 'study-plan',
         label: 'Study Plan',
         path: '/study-plan',
@@ -80,6 +96,20 @@ const NAV_ITEMS = [
         ),
       },
     ],
+  },
+];
+
+const BOTTOM_ITEMS = [
+  {
+    id: 'profile',
+    label: 'Profile',
+    path: '/profile',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    ),
   },
 ];
 
@@ -115,7 +145,8 @@ export default function Sidebar({ sessionCount }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-6">
+      <nav className="flex-1 space-y-6 flex flex-col">
+        <div className="flex-1 space-y-6">
         {NAV_ITEMS.map((group) => (
           <div key={group.section}>
             <p
@@ -137,6 +168,8 @@ export default function Sidebar({ sessionCount }: SidebarProps) {
                     ? location.pathname === '/flashcards'
                     : item.id === 'analytics'
                     ? location.pathname === '/analytics'
+                    : item.id === 'knowledge-graph'
+                    ? location.pathname === '/knowledge-graph'
                     : item.id === 'study-plan'
                     ? location.pathname === '/study-plan'
                     : false;
@@ -175,6 +208,31 @@ export default function Sidebar({ sessionCount }: SidebarProps) {
             </div>
           </div>
         ))}
+        </div>
+
+        {/* Bottom: Profile */}
+        <div className="space-y-1">
+          {BOTTOM_ITEMS.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <button
+                key={item.id}
+                onClick={() => navigate(item.path)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={
+                  isActive
+                    ? { background: 'rgba(200,150,62,0.15)', color: 'var(--gold)' }
+                    : { color: 'rgba(253,248,240,0.55)' }
+                }
+              >
+                <span style={{ color: isActive ? 'var(--gold)' : 'rgba(253,248,240,0.4)' }}>
+                  {item.icon}
+                </span>
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </nav>
     </aside>
   );

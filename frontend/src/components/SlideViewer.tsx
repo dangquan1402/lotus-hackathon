@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 
 interface Section {
@@ -160,10 +160,18 @@ function SlidePresenter({
 }) {
   const [current, setCurrent] = useState(0);
   const [activeImage, setActiveImage] = useState(0);
+  const [playbookMode, setPlaybookMode] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const total = sections.length;
 
-  const goNext = useCallback(() => { setCurrent((c) => Math.min(c + 1, total - 1)); setActiveImage(0); }, [total]);
-  const goPrev = useCallback(() => { setCurrent((c) => Math.max(c - 1, 0)); setActiveImage(0); }, []);
+  const goNext = useCallback(() => {
+    setCurrent((c) => Math.min(c + 1, total - 1));
+    setActiveImage(0);
+  }, [total]);
+  const goPrev = useCallback(() => {
+    setCurrent((c) => Math.max(c - 1, 0));
+    setActiveImage(0);
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -175,9 +183,33 @@ function SlidePresenter({
     return () => window.removeEventListener('keydown', onKey);
   }, [goNext, goPrev]);
 
+  // Auto-play audio when advancing slides in playbook mode
+  useEffect(() => {
+    if (playbookMode && audioRef.current) {
+      audioRef.current.load();
+      audioRef.current.play().catch(() => { /* autoplay blocked */ });
+    }
+  }, [current, playbookMode]);
+
+  // Auto-advance to next slide when audio ends in playbook mode
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !playbookMode) return;
+    function handleEnded() {
+      if (current < total - 1) {
+        setCurrent((c) => c + 1);
+        setActiveImage(0);
+      }
+    }
+    audio.addEventListener('ended', handleEnded);
+    return () => audio.removeEventListener('ended', handleEnded);
+  }, [playbookMode, current, total]);
+
   if (total === 0) return null;
 
   const slide = sections[current];
+  const wordCount = slide.narration_text.trim().split(/\s+/).filter(Boolean).length;
+  const speakingMinutes = Math.ceil(wordCount / 150);
 
   // Get images for current section: pattern is scene_XX_YY.jpg
   const sectionImages = (imagePaths ?? [])
@@ -266,10 +298,12 @@ function SlidePresenter({
             style={{ fontFamily: "'Playfair Display', serif", color: '#fdf8f0' }}>
             {slide.title}
           </h2>
-          <p className="text-sm leading-relaxed"
-            style={{ color: 'rgba(253,248,240,0.85)' }}>
-            {slide.narration_text}
-          </p>
+          {!playbookMode && (
+            <p className="text-sm leading-relaxed"
+              style={{ color: 'rgba(253,248,240,0.85)' }}>
+              {slide.narration_text}
+            </p>
+          )}
         </div>
 
         {/* Nav arrows (only when no images) */}
@@ -300,6 +334,60 @@ function SlidePresenter({
           </div>
         )}
       </div>
+
+      {/* Playbook / Presenter Notes Card */}
+      {playbookMode && (
+        <div className="rounded-2xl overflow-hidden"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4"
+            style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-3">
+              <span className="w-7 h-7 rounded-full text-xs flex items-center justify-center font-bold"
+                style={{ background: 'rgba(30,58,47,0.12)', color: 'var(--forest)' }}>
+                {current + 1}
+              </span>
+              <h3 className="text-sm font-bold" style={{ color: 'var(--forest)', fontFamily: "'Playfair Display', serif" }}>
+                {slide.title}
+              </h3>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(30,58,47,0.06)', color: 'var(--muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+                {wordCount} words
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(30,58,47,0.06)', color: 'var(--muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+                ~{speakingMinutes} min
+              </span>
+            </div>
+          </div>
+
+          {/* Narration text */}
+          <div className="px-6 py-5">
+            <p className="text-base leading-relaxed"
+              style={{ color: 'var(--text)', lineHeight: '1.8', fontSize: '1.05rem' }}>
+              {slide.narration_text}
+            </p>
+          </div>
+
+          {/* Audio player — assumes pre-generated audio per section */}
+          <div className="flex items-center gap-3 px-6 py-4"
+            style={{ borderTop: '1px solid var(--border)', background: 'rgba(30,58,47,0.03)' }}>
+            <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--forest)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            </svg>
+            <audio
+              ref={audioRef}
+              controls
+              src={`/api/files/session_${sessionId}/audio/section_${current}.wav`}
+              className="h-9 flex-1"
+              style={{ maxWidth: '100%' }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Image thumbnails strip */}
       {sectionImages.length > 1 && (
@@ -339,6 +427,21 @@ function SlidePresenter({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPlaybookMode((v) => !v)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+            style={{
+              color: playbookMode ? '#fdf8f0' : 'var(--forest)',
+              background: playbookMode ? 'var(--forest)' : 'rgba(30,58,47,0.08)',
+              border: playbookMode ? '1px solid var(--forest)' : '1px solid rgba(30,58,47,0.15)',
+            }}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            Playbook
+          </button>
           <a
             href={downloadUrl}
             download

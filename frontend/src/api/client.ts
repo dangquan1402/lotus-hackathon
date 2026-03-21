@@ -215,6 +215,13 @@ export const api = {
       body: JSON.stringify({ session_id: sessionId }),
     }),
 
+  generateSectionAudio: (sessionId: number, sectionIndex: number, text: string) =>
+    request<{ audio_url: string }>('/api/video/generate-section-audio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, section_index: sectionIndex, text }),
+    }),
+
   generateSlides: (sessionId: number) =>
     request<GenerateSlidesResponse>('/api/slides/generate', {
       method: 'POST',

@@ -68,6 +68,20 @@ class SessionIdRequest(BaseModel):
     session_id: int = Field(..., gt=0)
 
 
+class GenerateSectionAudioRequest(BaseModel):
+    """Request to generate audio for a single section."""
+
+    session_id: int = Field(..., gt=0)
+    section_index: int = Field(..., ge=0)
+    text: str = Field(..., min_length=1)
+
+
+class GenerateSectionAudioResponse(BaseModel):
+    """Response after generating section audio."""
+
+    audio_url: str
+
+
 class StepResponse(BaseModel):
     """Generic response for a pipeline step."""
 

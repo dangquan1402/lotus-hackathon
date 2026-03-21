@@ -10,6 +10,8 @@ from app.database import get_db
 from app.models.learning import LearningSession
 from app.schemas.learning import (
     GenerateImagesResponse,
+    GenerateSectionAudioRequest,
+    GenerateSectionAudioResponse,
     GenerateVideoRequest,
     GenerateVideoResponse,
     GenerateVoiceResponse,
@@ -96,11 +98,25 @@ async def generate_voice(
         session.status = "audio_generating"
         await db.flush()
 
+        sections_list = content.get("sections", [])
         full_narration = " ".join(
-            section["narration_text"] for section in content.get("sections", [])
+            section["narration_text"] for section in sections_list
         )
         await agenerate_voice(full_narration, audio_path)
         session.audio_path = str(audio_path)
+
+        # Per-section audio for playbook mode
+        section_audio_dir = Path(session.output_dir) / "audio"
+        section_audio_tasks = []
+        for idx, section in enumerate(sections_list):
+            section_audio_tasks.append(
+                agenerate_voice(
+                    section["narration_text"],
+                    section_audio_dir / f"section_{idx}.wav",
+                )
+            )
+        await asyncio.gather(*section_audio_tasks)
+
         session.status = "audio_done"
         await db.flush()
 
@@ -217,11 +233,25 @@ async def generate_all(
         # Voice + alignment
         session.status = "audio_generating"
         await db.flush()
+        sections_list = content.get("sections", [])
         full_narration = " ".join(
-            section["narration_text"] for section in content.get("sections", [])
+            section["narration_text"] for section in sections_list
         )
         await agenerate_voice(full_narration, audio_path)
         session.audio_path = str(audio_path)
+
+        # Per-section audio for playbook mode
+        section_audio_dir = session_dir / "audio"
+        section_audio_tasks = []
+        for idx, section in enumerate(sections_list):
+            section_audio_tasks.append(
+                agenerate_voice(
+                    section["narration_text"],
+                    section_audio_dir / f"section_{idx}.wav",
+                )
+            )
+        await asyncio.gather(*section_audio_tasks)
+
         session.status = "audio_done"
         await db.flush()
 
@@ -258,3 +288,25 @@ async def generate_all(
         video_url=f"/api/files/session_{session.id}/video/lesson_{session.id}.mp4",
         message="Full pipeline complete",
     )
+
+
+@router.post("/generate-section-audio", response_model=GenerateSectionAudioResponse)
+async def generate_section_audio(
+    payload: GenerateSectionAudioRequest,
+    db: AsyncSession = Depends(get_db),
+) -> GenerateSectionAudioResponse:
+    """Generate audio for a single section's narration text."""
+    session = await _get_session(payload.session_id, db)
+    audio_dir = Path(session.output_dir) / "audio"
+    output_path = audio_dir / f"section_{payload.section_index}.wav"
+
+    try:
+        await agenerate_voice(payload.text, output_path)
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=502, detail=f"Section audio generation failed: {exc}"
+        ) from exc
+
+    audio_url = f"/api/files/session_{session.id}/audio/section_{payload.section_index}.wav"
+    return GenerateSectionAudioResponse(audio_url=audio_url)

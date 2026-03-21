@@ -1,14 +1,16 @@
 import asyncio
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import StreamingResponse
 
 from app.database import get_db
 from app.models.learning import LearningSession
-from app.services.chat import get_chat_graph
+from app.services.chat import get_chat_graph, respond_stream
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -126,4 +128,71 @@ async def send_message(payload: SendMessageRequest):
     return SendMessageResponse(
         response=ai_content,
         sources=sources,
+    )
+
+
+@router.post("/message/stream")
+async def send_message_stream(payload: SendMessageRequest):
+    """Stream a response in an existing chat thread via Server-Sent Events."""
+    session_context = _thread_contexts.get(payload.thread_id)
+    if session_context is None:
+        raise HTTPException(status_code=404, detail="Chat thread not found")
+
+    graph = get_chat_graph()
+    config = {"configurable": {"thread_id": payload.thread_id}}
+
+    # Get current state from the graph checkpointer to build full message history
+    current_state = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: graph.get_state(config)
+    )
+    prior_messages = current_state.values.get("messages", []) if current_state.values else []
+
+    # Build state with full history + new user message
+    stream_state = {
+        "messages": list(prior_messages) + [{"role": "user", "content": payload.message}],
+        "session_context": session_context,
+    }
+
+    sources = [
+        {"url": r.get("url", ""), "title": r.get("title", "")}
+        for r in session_context.get("search_results", [])
+        if r.get("url") and r.get("title")
+    ]
+
+    async def event_generator():
+        full_response = []
+        try:
+            async for chunk in respond_stream(stream_state):
+                full_response.append(chunk)
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'done': True, 'sources': sources})}\n\n"
+
+        # Save the full response to the LangGraph checkpointer for conversation history
+        assembled = "".join(full_response)
+
+        # Update the graph state directly with user + assistant messages
+        def _save_to_graph():
+            graph.update_state(
+                config,
+                {
+                    "messages": [
+                        {"role": "user", "content": payload.message},
+                        {"role": "assistant", "content": assembled},
+                    ],
+                },
+            )
+
+        await asyncio.get_event_loop().run_in_executor(None, _save_to_graph)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )

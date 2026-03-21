@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 
 interface ChatPanelProps {
@@ -14,29 +16,81 @@ interface Message {
   role: 'ai' | 'user';
   content: string;
   sources?: Source[];
+  streaming?: boolean;
 }
 
-// Render text with markdown links: [text](url)
-function renderWithLinks(text: string) {
-  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
-  return parts.map((part, i) => {
-    const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-    if (match) {
+const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components'] = {
+  h1: ({ children }) => <h1 className="text-lg font-bold mt-3 mb-1" style={{ color: 'var(--forest)' }}>{children}</h1>,
+  h2: ({ children }) => <h2 className="text-base font-bold mt-3 mb-1" style={{ color: 'var(--forest)' }}>{children}</h2>,
+  h3: ({ children }) => <h3 className="text-sm font-bold mt-2 mb-1" style={{ color: 'var(--forest)' }}>{children}</h3>,
+  p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc list-outside ml-4 mb-2 space-y-0.5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal list-outside ml-4 mb-2 space-y-0.5">{children}</ol>,
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline font-medium hover:opacity-80 transition-opacity"
+      style={{ color: 'var(--sky)' }}
+    >
+      {children}
+    </a>
+  ),
+  code: ({ children, className }) => {
+    const isBlock = className?.startsWith('language-');
+    if (isBlock) {
       return (
-        <a
-          key={i}
-          href={match[2]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline font-medium hover:opacity-80 transition-opacity"
-          style={{ color: 'var(--sky)' }}
-        >
-          {match[1]}
-        </a>
+        <pre className="rounded-lg px-3 py-2 my-2 text-xs overflow-x-auto font-mono"
+          style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid var(--border)' }}>
+          <code>{children}</code>
+        </pre>
       );
     }
-    return <span key={i}>{part}</span>;
-  });
+    return (
+      <code className="font-mono text-xs px-1 py-0.5 rounded"
+        style={{ background: 'rgba(0,0,0,0.06)' }}>
+        {children}
+      </code>
+    );
+  },
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 pl-3 my-2 italic opacity-80"
+      style={{ borderColor: 'var(--forest)' }}>
+      {children}
+    </blockquote>
+  ),
+  table: ({ children }) => (
+    <div className="overflow-x-auto my-2">
+      <table className="text-xs w-full border-collapse">{children}</table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th className="text-left px-2 py-1 font-semibold"
+      style={{ borderBottom: '2px solid var(--border)', background: 'rgba(0,0,0,0.04)' }}>
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="px-2 py-1" style={{ borderBottom: '1px solid var(--border)' }}>{children}</td>
+  ),
+};
+
+function AIMessageContent({ content, streaming }: { content: string; streaming?: boolean }) {
+  return (
+    <div className="text-sm prose-sm max-w-none">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+        {content}
+      </ReactMarkdown>
+      {streaming && (
+        <span className="inline-block w-1.5 h-3.5 ml-0.5 rounded-sm animate-pulse align-middle"
+          style={{ background: 'var(--forest)' }} />
+      )}
+    </div>
+  );
 }
 
 export default function ChatPanel({ sessionId }: ChatPanelProps) {
@@ -81,17 +135,61 @@ export default function ChatPanel({ sessionId }: ChatPanelProps) {
     setMessages(prev => [...prev, { role: 'user', content: text }]);
     setSending(true);
 
+    // Add placeholder streaming message
+    setMessages(prev => [...prev, { role: 'ai', content: '', streaming: true }]);
+
     try {
-      const data = await api.sendChatMessage({ thread_id: threadId, message: text });
-      setMessages(prev => [
-        ...prev,
-        { role: 'ai', content: data.response, sources: data.sources?.length ? data.sources : undefined },
-      ]);
-    } catch (err) {
-      setMessages(prev => [
-        ...prev,
-        { role: 'ai', content: `Sorry, I encountered an error: ${err instanceof Error ? err.message : 'Unknown error'}` },
-      ]);
+      await api.streamChatMessage(
+        { thread_id: threadId, message: text },
+        (chunk) => {
+          setMessages(prev => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.role === 'ai' && last.streaming) {
+              updated[updated.length - 1] = { ...last, content: last.content + chunk };
+            }
+            return updated;
+          });
+        },
+        (sources) => {
+          setMessages(prev => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.role === 'ai') {
+              updated[updated.length - 1] = {
+                ...last,
+                streaming: false,
+                sources: sources.length ? sources : undefined,
+              };
+            }
+            return updated;
+          });
+        },
+      );
+    } catch {
+      // Fall back to non-streaming
+      try {
+        // Remove the empty streaming placeholder
+        setMessages(prev => prev.slice(0, -1));
+        const data = await api.sendChatMessage({ thread_id: threadId, message: text });
+        setMessages(prev => [
+          ...prev,
+          { role: 'ai', content: data.response, sources: data.sources?.length ? data.sources : undefined },
+        ]);
+      } catch (fallbackErr) {
+        setMessages(prev => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last?.role === 'ai' && last.streaming) {
+            updated[updated.length - 1] = {
+              role: 'ai',
+              content: `Sorry, I encountered an error: ${fallbackErr instanceof Error ? fallbackErr.message : 'Unknown error'}`,
+              streaming: false,
+            };
+          }
+          return updated;
+        });
+      }
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -175,7 +273,20 @@ export default function ChatPanel({ sessionId }: ChatPanelProps) {
                   : { background: 'var(--forest)', color: '#fdf8f0', borderTopRightRadius: '4px' }
                 }
               >
-                {renderWithLinks(msg.content)}
+                {msg.role === 'ai' ? (
+                  msg.content || msg.streaming ? (
+                    <AIMessageContent content={msg.content} streaming={msg.streaming} />
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      {[0, 1, 2].map(n => (
+                        <span key={n} className="w-1.5 h-1.5 rounded-full animate-bounce"
+                          style={{ background: 'var(--muted)', animationDelay: `${n * 150}ms` }} />
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <span>{msg.content}</span>
+                )}
               </div>
 
               {/* Sources chips */}
@@ -202,8 +313,8 @@ export default function ChatPanel({ sessionId }: ChatPanelProps) {
           </div>
         ))}
 
-        {/* Typing indicator */}
-        {sending && (
+        {/* Typing indicator (only when sending but no streaming message yet) */}
+        {sending && messages[messages.length - 1]?.role !== 'ai' && (
           <div className="flex gap-3">
             <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center"
               style={{ background: 'linear-gradient(135deg, var(--forest), var(--forest-light))' }}>

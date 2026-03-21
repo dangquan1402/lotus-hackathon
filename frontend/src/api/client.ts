@@ -279,4 +279,55 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }),
+
+  streamChatMessage: async (
+    data: { thread_id: string; message: string },
+    onChunk: (text: string) => void,
+    onDone: (sources: { url: string; title: string }[]) => void,
+  ): Promise<void> => {
+    const res = await fetch(`${API_BASE}/api/chat/message/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok || !res.body) {
+      const errorText = await res.text().catch(() => res.statusText);
+      throw new Error(errorText || `Request failed: ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          const parsed = JSON.parse(jsonStr) as {
+            content?: string;
+            done?: boolean;
+            sources?: { url: string; title: string }[];
+          };
+          if (parsed.done) {
+            onDone(parsed.sources ?? []);
+            return;
+          }
+          if (parsed.content) {
+            onChunk(parsed.content);
+          }
+        } catch {
+          // skip malformed lines
+        }
+      }
+    }
+  },
 };

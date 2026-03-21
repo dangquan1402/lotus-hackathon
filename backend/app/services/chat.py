@@ -1,6 +1,8 @@
+import asyncio
 import json
 import re
 import time
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Annotated, TypedDict
 
@@ -73,25 +75,7 @@ def _build_system_prompt(session_context: dict) -> str:
 def respond(state: ChatState) -> dict:
     """Call the LLM with session context and message history."""
     endpoint, api_key = _load_config()
-
-    system_prompt = _build_system_prompt(state["session_context"])
-
-    # Build messages list: system + conversation history
-    api_messages = [{"role": "system", "content": system_prompt}]
-    for msg in state["messages"]:
-        # LangGraph uses HumanMessage/AIMessage objects with .type and .content
-        if hasattr(msg, "type"):
-            role = msg.type
-            content = msg.content
-        else:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-        # Map LangGraph types to OpenAI roles
-        if role == "human":
-            role = "user"
-        elif role == "ai":
-            role = "assistant"
-        api_messages.append({"role": role, "content": content})
+    api_messages = _build_api_messages(state)
 
     resp = None
     for model in MODELS:
@@ -116,6 +100,67 @@ def respond(state: ChatState) -> dict:
 
     ai_content = resp.json()["choices"][0]["message"]["content"].strip()
     return {"messages": [{"role": "assistant", "content": ai_content}]}
+
+
+def _build_api_messages(state: ChatState) -> list[dict]:
+    """Build the API messages list from state (shared by respond and respond_stream)."""
+    system_prompt = _build_system_prompt(state["session_context"])
+    api_messages = [{"role": "system", "content": system_prompt}]
+    for msg in state["messages"]:
+        if hasattr(msg, "type"):
+            role = msg.type
+            content = msg.content
+        else:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+        if role == "human":
+            role = "user"
+        elif role == "ai":
+            role = "assistant"
+        api_messages.append({"role": role, "content": content})
+    return api_messages
+
+
+async def respond_stream(
+    state: ChatState,
+) -> AsyncGenerator[str, None]:
+    """Stream LLM response chunks. Yields content strings."""
+    endpoint, api_key = _load_config()
+    api_messages = _build_api_messages(state)
+
+    async with httpx.AsyncClient(timeout=120) as client:
+        for model in MODELS:
+            async with client.stream(
+                "POST",
+                f"{endpoint}/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": model,
+                    "messages": api_messages,
+                    "temperature": 0.7,
+                    "stream": True,
+                },
+            ) as resp:
+                if resp.status_code in (429, 529):
+                    await resp.aread()
+                    await asyncio.sleep(3)
+                    continue
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:]
+                    if data.strip() == "[DONE]":
+                        return
+                    try:
+                        chunk = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                    content = delta.get("content")
+                    if content:
+                        yield content
+                return  # success, don't try next model
 
 
 def build_chat_graph():

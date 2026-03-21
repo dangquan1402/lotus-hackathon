@@ -1,10 +1,14 @@
 """Generate Lumina Hackathon Pitch Deck (PPTX)."""
 
+from pathlib import Path
+
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
+
+DECK_IMAGES_DIR = Path("deck_images")
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 DARK_GREEN = RGBColor(0x1E, 0x3A, 0x2F)
@@ -105,6 +109,19 @@ def add_bullet_list(slide, left, top, width, height, items, font_size=16,
     return txBox, tf
 
 
+def add_slide_image(slide, filename, left=Inches(0), top=Inches(0),
+                    width=None, height=None):
+    """Add an image from deck_images/ to a slide. Returns shape or None if file missing."""
+    img_path = DECK_IMAGES_DIR / filename
+    if not img_path.exists():
+        return None
+    return slide.shapes.add_picture(
+        str(img_path), left, top,
+        width=width or SLIDE_WIDTH,
+        height=height or SLIDE_HEIGHT,
+    )
+
+
 def make_section_title(slide, text, left=Inches(0.8), top=Inches(0.6)):
     """Add a section title with accent bar."""
     add_accent_bar(slide, left, top)
@@ -126,6 +143,11 @@ def create_deck():
     # ══════════════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank_layout)
     set_slide_bg(slide, DARK_GREEN)
+
+    # Background image (semi-transparent via placement behind text)
+    add_slide_image(slide, "slide1_hero.jpg",
+                    left=Inches(7.5), top=Inches(0.5),
+                    width=Inches(5.5), height=Inches(6.5))
 
     # Diamond icon
     add_text_box(slide, Inches(5.7), Inches(1.5), Inches(2), Inches(1),
@@ -154,6 +176,9 @@ def create_deck():
     # ══════════════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank_layout)
     set_slide_bg(slide, CREAM)
+    add_slide_image(slide, "slide2_problem.jpg",
+                    left=Inches(7.5), top=Inches(1.5),
+                    width=Inches(5.5), height=Inches(5.5))
     make_section_title(slide, "The Problem")
 
     problems = [
@@ -175,6 +200,9 @@ def create_deck():
     # ══════════════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank_layout)
     set_slide_bg(slide, CREAM)
+    add_slide_image(slide, "slide3_solution.jpg",
+                    left=Inches(7.5), top=Inches(1.5),
+                    width=Inches(5.5), height=Inches(5.5))
     make_section_title(slide, "Our Solution")
 
     add_text_box(slide, Inches(1.0), Inches(1.6), Inches(11), Inches(0.6),
@@ -359,6 +387,9 @@ def create_deck():
     # ══════════════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank_layout)
     set_slide_bg(slide, CREAM)
+    add_slide_image(slide, "slide7_differentiator.jpg",
+                    left=Inches(7.8), top=Inches(1.5),
+                    width=Inches(5.2), height=Inches(5.5))
     make_section_title(slide, "What Makes Us Different")
 
     differentiators = [
@@ -437,6 +468,9 @@ def create_deck():
     # ══════════════════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank_layout)
     set_slide_bg(slide, CREAM)
+    add_slide_image(slide, "slide9_vision.jpg",
+                    left=Inches(7.5), top=Inches(1.5),
+                    width=Inches(5.5), height=Inches(5.5))
     make_section_title(slide, "Future Vision")
 
     vision_items = [

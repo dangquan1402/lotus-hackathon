@@ -23,6 +23,18 @@ from app.services.voice_gen import aalign_audio, agenerate_voice
 
 router = APIRouter(prefix="/video", tags=["video"])
 
+# Styles that look better with animated video clips
+ANIMATED_STYLES = {"photorealistic", "3d_render", "anime", "cartoon"}
+# Styles that work better as static images (diagrams, flat art)
+STATIC_STYLES = {"scientific", "minimalist", "watercolor"}
+
+
+def _resolve_animated(use_animated: bool | None, image_style: str | None) -> bool:
+    """Resolve use_animated flag: explicit override > style-based > default."""
+    if use_animated is not None:
+        return use_animated
+    return (image_style or "").lower() in ANIMATED_STYLES
+
 
 async def _get_session(session_id: int, db: AsyncSession) -> LearningSession:
     result = await db.execute(select(LearningSession).where(LearningSession.id == session_id))
@@ -170,6 +182,7 @@ async def generate_video(
         session.status = "video_rendering"
         await db.flush()
 
+        animated = _resolve_animated(payload.use_animated, session.image_style)
         video_path = await agenerate_video(
             session_id=session.id,
             content=content,
@@ -177,7 +190,7 @@ async def generate_video(
             audio_path=Path(session.audio_path),
             output_dir=session_dir / "video",
             alignment=session.alignment,
-            use_animated=payload.use_animated,
+            use_animated=animated,
         )
         session.video_path = str(video_path)
         session.status = "video_done"
@@ -267,6 +280,7 @@ async def generate_all(
         # Render
         session.status = "video_rendering"
         await db.flush()
+        animated = _resolve_animated(payload.use_animated, session.image_style)
         video_path = await agenerate_video(
             session_id=session.id,
             content=content,
@@ -274,7 +288,7 @@ async def generate_all(
             audio_path=audio_path,
             output_dir=session_dir / "video",
             alignment=alignment,
-            use_animated=payload.use_animated,
+            use_animated=animated,
         )
         session.video_path = str(video_path)
         session.status = "video_done"

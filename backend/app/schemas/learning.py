@@ -103,9 +103,9 @@ class GenerateVoiceResponse(StepResponse):
 
 class GenerateVideoRequest(BaseModel):
     session_id: int = Field(..., gt=0)
-    use_animated: bool = Field(
-        default=False,
-        description="Use animated .mp4 clips instead of static images",
+    use_animated: bool | None = Field(
+        default=None,
+        description="Use animated clips. None = auto-detect from image style.",
     )
 
 

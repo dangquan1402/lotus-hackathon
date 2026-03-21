@@ -5,6 +5,124 @@ import httpx
 
 REMOTION_API = os.environ.get("REMOTION_API_URL", "http://localhost:3100")
 
+CLAUSE_STARTERS = {
+    "and", "but", "or", "yet", "nor", "for", "so",
+    "who", "which", "that", "where", "when", "while",
+    "although", "because", "since", "if", "as", "until",
+    "unless", "though",
+}
+MAX_WORDS, HARD_MAX, PAUSE_THRESHOLD = 10, 14, 0.3
+
+
+def _build_phrases(words: list[dict]) -> list[dict]:
+    """Build natural caption phrases from alignment words.
+
+    Splits at punctuation, pauses, and clause boundaries instead of
+    fixed word counts, then merges orphan segments.
+    """
+    if not words:
+        return []
+
+    segments: list[dict] = []
+    cur_txt: list[str] = []
+    cur_ts: list[dict] = []
+
+    def flush() -> None:
+        if not cur_txt:
+            return
+        segments.append({
+            "index": len(segments),
+            "start_s": round(cur_ts[0]["start"], 2),
+            "end_s": round(cur_ts[-1]["end"], 2),
+            "text": " ".join(cur_txt),
+        })
+        cur_txt.clear()
+        cur_ts.clear()
+
+    for i, w in enumerate(words):
+        cur_txt.append(w["word"])
+        cur_ts.append(w)
+        n = len(cur_txt)
+        is_last = i == len(words) - 1
+        has_pause = not is_last and (words[i + 1]["start"] - w["end"]) > PAUSE_THRESHOLD
+        has_period = w["word"].rstrip("\"'").endswith((".", "?", "!"))
+        has_comma = w["word"].endswith(",") and n >= 4
+
+        if is_last or has_period or has_comma:
+            flush()
+            continue
+        if has_pause and n >= 3:
+            flush()
+            continue
+        if n >= MAX_WORDS:
+            # Look ahead for a natural break within 3 words
+            lb = None
+            for j in range(1, min(4, len(words) - i)):
+                fw = words[i + j]["word"]
+                if fw.rstrip("\"'").endswith((".", "?", "!")) or (
+                    fw.endswith(",") and n + j >= 4
+                ):
+                    lb = j
+                    break
+                if (
+                    j < len(words) - i - 1
+                    and words[i + j + 1]["start"] - words[i + j]["end"] > PAUSE_THRESHOLD
+                ):
+                    lb = j
+                    break
+            if lb is not None and n + lb <= HARD_MAX:
+                continue
+            # Try splitting at a clause starter
+            best = None
+            for k in range(n - 1, max(2, n - 5), -1):
+                if cur_txt[k].lower().rstrip(".,!?;:'\"") in CLAUSE_STARTERS:
+                    best = k
+                    break
+            if best is not None and best >= 3:
+                tb = " ".join(cur_txt[:best])
+                tsb = cur_ts[:best]
+                rt = cur_txt[best:]
+                rts = cur_ts[best:]
+                cur_txt.clear()
+                cur_ts.clear()
+                segments.append({
+                    "index": len(segments),
+                    "start_s": round(tsb[0]["start"], 2),
+                    "end_s": round(tsb[-1]["end"], 2),
+                    "text": tb,
+                })
+                cur_txt.extend(rt)
+                cur_ts.extend(rts)
+                continue
+            if n >= HARD_MAX:
+                flush()
+    flush()
+
+    # Merge orphan segments (< 0.5s and <= 2 words) into next
+    merged: list[dict] = []
+    i = 0
+    while i < len(segments):
+        s = segments[i]
+        if (
+            (s["end_s"] - s["start_s"]) < 0.5
+            and len(s["text"].split()) <= 2
+            and i < len(segments) - 1
+        ):
+            nxt = segments[i + 1]
+            merged.append({
+                "index": len(merged),
+                "start_s": s["start_s"],
+                "end_s": nxt["end_s"],
+                "text": s["text"] + " " + nxt["text"],
+            })
+            i += 2
+        else:
+            s["index"] = len(merged)
+            merged.append(s)
+            i += 1
+
+    return merged
+
 
 async def agenerate_video(
     session_id: int,
@@ -86,20 +204,8 @@ async def agenerate_video(
             }
         )
 
-    # Build phrases from alignment words for captions
-    phrases = []
-    if words:
-        phrase_size = 8
-        for pi in range(0, len(words), phrase_size):
-            chunk = words[pi : pi + phrase_size]
-            phrases.append(
-                {
-                    "index": pi // phrase_size,
-                    "start_s": chunk[0]["start"],
-                    "end_s": chunk[-1]["end"],
-                    "text": " ".join(w["word"] for w in chunk),
-                }
-            )
+    # Build phrases from alignment words — clause-aware splitting
+    phrases = _build_phrases(words)
 
     # Compensate for TransitionSeries overlap and frame rounding:
     # Remotion total = sum(scene_frames) - (N-1)*transition_frames

@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Alex",
+    "interests": ["physics"],
+    "expertise_level": "intermediate",
+    "perspective": "A high school student who's fascinated by how the universe works.",
+    "age_group": "secondary",
+    "goal": "curiosity",
+    "image_style": "cartoon"
+  },
+  {
+    "name": "Dr. Chen",
+    "interests": ["quantum computing", "AI research"],
+    "expertise_level": "advanced",
+    "perspective": "I am a researcher with deep expertise in physics and computer science, looking to stay current with cutting-edge developments.",
+    "age_group": "adult",
+    "goal": "career",
+    "image_style": "scientific"
+  },
+  {
+    "name": "Sofia",
+    "interests": ["history", "art", "music"],
+    "expertise_level": "intermediate",
+    "perspective": "I am a 15-year-old student preparing for exams who loves creative subjects like art and music.",
+    "age_group": "secondary",
+    "goal": "exam_prep",
+    "image_style": "watercolor"
+  },
+  {
+    "name": "Raj",
+    "interests": ["cooking", "fitness", "personal finance"],
+    "expertise_level": "beginner",
+    "perspective": "I am an adult beginner who learns best by doing. I want practical, hands-on knowledge for everyday life.",
+    "age_group": "adult",
+    "goal": "curiosity",
+    "image_style": "photorealistic"
+  },
+  {
+    "name": "Maya",
+    "interests": ["dinosaurs", "space", "animals"],
+    "expertise_level": "beginner",
+    "perspective": "I am a curious 10-year-old who loves learning about cool animals and outer space.",
+    "age_group": "primary",
+    "goal": "curiosity",
+    "image_style": "cartoon"
+  },
+  {
+    "name": "James",
+    "interests": ["startups", "product management", "growth hacking"],
+    "expertise_level": "intermediate",
+    "perspective": "I'm a product manager at a tech startup, always looking to learn new frameworks and strategies to grow our product.",
+    "age_group": "adult",
+    "goal": "career",
+    "image_style": "minimalist"
+  },
+  {
+    "name": "Aisha",
+    "interests": ["biology", "medicine", "genetics"],
+    "expertise_level": "advanced",
+    "perspective": "I'm a medical student preparing for board exams. I need clear, precise explanations of complex biological systems.",
+    "age_group": "adult",
+    "goal": "exam_prep",
+    "image_style": "scientific"
+  },
+  {
+    "name": "Kenji",
+    "interests": ["anime", "Japanese culture", "game design"],
+    "expertise_level": "beginner",
+    "perspective": "I'm a 14-year-old who wants to learn game development and Japanese culture through visual storytelling.",
+    "age_group": "secondary",
+    "goal": "curiosity",
+    "image_style": "anime"
+  }
+]

@@ -17,6 +17,7 @@ from app.schemas.learning import (
     GenerateVoiceResponse,
     SessionIdRequest,
 )
+from app.services.animated_video import generate_animated_clips
 from app.services.image_gen import agenerate_image
 from app.services.video_gen import agenerate_video
 from app.services.voice_gen import aalign_audio, agenerate_voice
@@ -64,7 +65,7 @@ async def generate_images(
         await db.flush()
 
         image_style = session.image_style
-        image_provider = session.image_provider or "fuseapi"
+        image_provider = session.image_provider or "grok"
         image_tasks = []
         for i, section in enumerate(content.get("sections", [])):
             prompts = section.get("image_prompts") or [section.get("image_prompt", "")]
@@ -106,6 +107,7 @@ async def generate_voice(
     """Generate narration audio and word-level alignment."""
     session = await _get_session(payload.session_id, db)
     content = session.generated_content
+    voice_provider = session.voice_provider or "local"
     audio_path = Path(session.output_dir) / "narration.wav"
 
     try:
@@ -113,10 +115,8 @@ async def generate_voice(
         await db.flush()
 
         sections_list = content.get("sections", [])
-        full_narration = " ".join(
-            section["narration_text"] for section in sections_list
-        )
-        await agenerate_voice(full_narration, audio_path)
+        full_narration = " ".join(section["narration_text"] for section in sections_list)
+        audio_path = await agenerate_voice(full_narration, audio_path, provider=voice_provider)
         session.audio_path = str(audio_path)
 
         # Per-section audio for playbook mode
@@ -127,6 +127,7 @@ async def generate_voice(
                 agenerate_voice(
                     section["narration_text"],
                     section_audio_dir / f"section_{idx}.wav",
+                    provider=voice_provider,
                 )
             )
         await asyncio.gather(*section_audio_tasks)
@@ -138,7 +139,7 @@ async def generate_voice(
         session.status = "aligning"
         await db.flush()
 
-        alignment = await aalign_audio(audio_path)
+        alignment = await aalign_audio(audio_path, provider=voice_provider, text=full_narration)
         session.alignment = alignment
         session.status = "aligned"
         await db.flush()
@@ -179,10 +180,20 @@ async def generate_video(
     session_dir = Path(session.output_dir)
 
     try:
+        animated = _resolve_animated(payload.use_animated, session.image_style)
+
+        # Auto-generate animated clips if needed and not yet created
+        if animated:
+            clips_dir = session_dir / "clips"
+            has_clips = clips_dir.exists() and any(clips_dir.glob("*.mp4"))
+            if not has_clips and session.image_paths:
+                session.status = "clips_generating"
+                await db.flush()
+                await generate_animated_clips(session.image_paths, session_dir)
+
         session.status = "video_rendering"
         await db.flush()
 
-        animated = _resolve_animated(payload.use_animated, session.image_style)
         video_path = await agenerate_video(
             session_id=session.id,
             content=content,
@@ -220,6 +231,7 @@ async def generate_all(
     """Run full pipeline: images → voice → align → render. Convenience endpoint."""
     session = await _get_session(payload.session_id, db)
     content = session.generated_content
+    voice_provider = session.voice_provider or "local"
     session_dir = Path(session.output_dir)
     images_dir = session_dir / "images"
     audio_path = session_dir / "narration.wav"
@@ -229,7 +241,7 @@ async def generate_all(
         session.status = "images_generating"
         await db.flush()
         image_style = session.image_style
-        image_provider = session.image_provider or "fuseapi"
+        image_provider = session.image_provider or "grok"
         image_tasks = []
         for i, section in enumerate(content.get("sections", [])):
             prompts = section.get("image_prompts") or [section.get("image_prompt", "")]
@@ -248,14 +260,20 @@ async def generate_all(
         session.status = "images_done"
         await db.flush()
 
+        # Animated clips (if style warrants it)
+        animated = _resolve_animated(payload.use_animated, session.image_style)
+        if animated:
+            session.status = "clips_generating"
+            await db.flush()
+            image_paths_str = [str(p) for p in image_results]
+            await generate_animated_clips(image_paths_str, session_dir)
+
         # Voice + alignment
         session.status = "audio_generating"
         await db.flush()
         sections_list = content.get("sections", [])
-        full_narration = " ".join(
-            section["narration_text"] for section in sections_list
-        )
-        await agenerate_voice(full_narration, audio_path)
+        full_narration = " ".join(section["narration_text"] for section in sections_list)
+        audio_path = await agenerate_voice(full_narration, audio_path, provider=voice_provider)
         session.audio_path = str(audio_path)
 
         # Per-section audio for playbook mode
@@ -266,6 +284,7 @@ async def generate_all(
                 agenerate_voice(
                     section["narration_text"],
                     section_audio_dir / f"section_{idx}.wav",
+                    provider=voice_provider,
                 )
             )
         await asyncio.gather(*section_audio_tasks)
@@ -273,14 +292,13 @@ async def generate_all(
         session.status = "audio_done"
         await db.flush()
 
-        alignment = await aalign_audio(audio_path)
+        alignment = await aalign_audio(audio_path, provider=voice_provider, text=full_narration)
         session.alignment = alignment
         await db.flush()
 
         # Render
         session.status = "video_rendering"
         await db.flush()
-        animated = _resolve_animated(payload.use_animated, session.image_style)
         video_path = await agenerate_video(
             session_id=session.id,
             content=content,
@@ -317,18 +335,20 @@ async def generate_section_audio(
 ) -> GenerateSectionAudioResponse:
     """Generate audio for a single section's narration text."""
     session = await _get_session(payload.session_id, db)
+    voice_provider = session.voice_provider or "local"
     audio_dir = Path(session.output_dir) / "audio"
     output_path = audio_dir / f"section_{payload.section_index}.wav"
 
     try:
-        await agenerate_voice(payload.text, output_path)
+        output_path = await agenerate_voice(payload.text, output_path, provider=voice_provider)
     except Exception as exc:
         traceback.print_exc()
         raise HTTPException(
             status_code=502, detail=f"Section audio generation failed: {exc}"
         ) from exc
 
-    audio_url = f"/api/files/session_{session.id}/audio/section_{payload.section_index}.wav"
+    ext = output_path.suffix  # .wav for local, .mp3 for elevenlabs
+    audio_url = f"/api/files/session_{session.id}/audio/section_{payload.section_index}{ext}"
     return GenerateSectionAudioResponse(audio_url=audio_url)
 
 
@@ -342,9 +362,7 @@ async def generate_animated_clips_endpoint(
 
     session = await _get_session(payload.session_id, db)
     if not session.image_paths:
-        raise HTTPException(
-            status_code=400, detail="No images. Run image generation first."
-        )
+        raise HTTPException(status_code=400, detail="No images. Run image generation first.")
 
     session_dir = Path(session.output_dir)
 
@@ -355,13 +373,9 @@ async def generate_animated_clips_endpoint(
         )
     except Exception as exc:
         traceback.print_exc()
-        raise HTTPException(
-            status_code=502, detail=f"Clip generation failed: {exc}"
-        ) from exc
+        raise HTTPException(status_code=502, detail=f"Clip generation failed: {exc}") from exc
 
-    clip_urls = [
-        f"/api/files/{p.replace('output/', '')}" for p in clip_paths
-    ]
+    clip_urls = [f"/api/files/{p.replace('output/', '')}" for p in clip_paths]
 
     return {
         "session_id": session.id,

@@ -49,6 +49,9 @@ class TopicExploreRequest(BaseModel):
     image_provider: str | None = Field(
         default=None, description="Image provider: 'grok' (default) or 'fuseapi'"
     )
+    voice_provider: str | None = Field(
+        default=None, description="TTS provider: 'local' (MLX Chatterbox) or 'elevenlabs'"
+    )
     session_id: int | None = Field(default=None, description="Resume from an assessed session")
 
 

@@ -65,6 +65,9 @@ class LearningSession(Base):
     # Image generation provider: "grok" (default) or "fuseapi"
     image_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    # Voice/TTS provider: "local" (MLX Chatterbox) or "elevenlabs"
+    voice_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
     # Error tracking
     error_message: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 

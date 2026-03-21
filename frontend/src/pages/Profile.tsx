@@ -1,12 +1,5 @@
 import { useState, useEffect, type KeyboardEvent, type FormEvent } from 'react';
-import { api, type LearningStyle, type ExpertiseLevel, type AgeGroup, type Goal, type ImageStyle } from '../api/client';
-
-const LEARNING_STYLE_OPTIONS: { value: LearningStyle; label: string; icon: string }[] = [
-  { value: 'visual', label: 'Visual', icon: '👁' },
-  { value: 'auditory', label: 'Auditory', icon: '🎧' },
-  { value: 'reading', label: 'Reading / Writing', icon: '📖' },
-  { value: 'kinesthetic', label: 'Kinesthetic', icon: '🤝' },
-];
+import { api, type ExpertiseLevel, type AgeGroup, type Goal, type ImageStyle } from '../api/client';
 
 const EXPERTISE_OPTIONS: { value: ExpertiseLevel; label: string; desc: string }[] = [
   { value: 'beginner', label: 'Beginner', desc: 'Just getting started' },
@@ -40,7 +33,6 @@ const IMAGE_STYLE_OPTIONS: { value: ImageStyle; label: string; icon: string }[] 
 interface FormState {
   name: string;
   interests: string[];
-  learning_style: LearningStyle;
   expertise_level: ExpertiseLevel;
   age_group: AgeGroup;
   goal: Goal;
@@ -54,7 +46,6 @@ export default function Profile() {
   const [form, setForm] = useState<FormState>({
     name: '',
     interests: [],
-    learning_style: 'visual',
     expertise_level: 'beginner',
     age_group: 'secondary',
     goal: 'curiosity',
@@ -74,7 +65,6 @@ export default function Profile() {
         setForm({
           name: user.name,
           interests: user.interests ?? [],
-          learning_style: user.learning_style,
           expertise_level: user.expertise_level,
           age_group: (user.age_group as AgeGroup) ?? 'secondary',
           goal: (user.goal as Goal) ?? 'curiosity',
@@ -201,26 +191,6 @@ export default function Profile() {
                 className="flex-1 min-w-32 bg-transparent outline-none py-1 text-sm"
                 style={{ color: 'var(--text)' }}
               />
-            </div>
-          </div>
-
-          {/* Learning Style */}
-          <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>
-              Learning Style
-            </label>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {LEARNING_STYLE_OPTIONS.map((opt) => (
-                <button key={opt.value} type="button"
-                  onClick={() => setForm((p) => ({ ...p, learning_style: opt.value }))}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer"
-                  style={form.learning_style === opt.value
-                    ? { background: 'var(--forest)', border: '1px solid var(--forest)', color: '#fdf8f0' }
-                    : { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
-                  <span className="text-xl">{opt.icon}</span>
-                  <span className="text-xs font-semibold">{opt.label}</span>
-                </button>
-              ))}
             </div>
           </div>
 

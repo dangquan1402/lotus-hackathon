@@ -1,24 +1,11 @@
 import asyncio
 import json
 import re
-from pathlib import Path
 
 import httpx
 
 from app.schemas.learning import GeneratedContent
-
-CONFIG_PATH = Path.home() / ".fuseapi" / "config.json"
-MODELS = ["gpt-5.1"]
-
-
-def _load_fuseapi_config() -> tuple[str, str]:
-    """Load FuseAPI endpoint and API key from ~/.fuseapi/config.json."""
-    config = json.loads(CONFIG_PATH.read_text())
-    profile = config["profiles"][config["default"]]
-    endpoint = profile["endpoint"]
-    # Ensure protocol separator has double slashes
-    endpoint = re.sub(r"^(https?):(?!//)", r"\1://", endpoint)
-    return endpoint, profile["apiKey"]
+from app.services.llm import get_llm_config
 
 
 def _build_system_prompt(
@@ -222,7 +209,7 @@ async def asynthesize_content(
         httpx.HTTPError: On API communication failure.
         ValueError: If the LLM returns malformed JSON.
     """
-    endpoint, api_key = _load_fuseapi_config()
+    base_url, api_key, model = get_llm_config()
     system_prompt = _build_system_prompt(
         learning_style,
         expertise_level,
@@ -238,29 +225,26 @@ async def asynthesize_content(
 
     async with httpx.AsyncClient(timeout=180) as client:
         response = None
-        for model in MODELS:
-            for attempt in range(2):
-                response = await client.post(
-                    f"{endpoint}/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt},
-                        ],
-                        "temperature": 0.7,
-                    },
-                )
-                if response.status_code in (429, 529) and attempt < 1:
-                    await asyncio.sleep(3)
-                    continue
-                break
-            if response.status_code == 200:
-                break
+        for attempt in range(2):
+            response = await client.post(
+                f"{base_url}/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.7,
+                },
+            )
+            if response.status_code in (429, 529) and attempt < 1:
+                await asyncio.sleep(3)
+                continue
+            break
         response.raise_for_status()
 
     data = response.json()
@@ -281,15 +265,15 @@ async def asynthesize_content(
 
 async def aextract_concepts(topic: str, content: GeneratedContent) -> list[str]:
     """Extract key concepts learned from the generated content via LLM."""
-    endpoint, api_key = _load_fuseapi_config()
+    base_url, api_key, model = get_llm_config()
     narration = " ".join(s.narration_text for s in content.sections)
 
     async with httpx.AsyncClient(timeout=60) as client:
         resp = await client.post(
-            f"{endpoint}/v1/chat/completions",
+            f"{base_url}/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
             json={
-                "model": MODELS[0],
+                "model": model,
                 "messages": [
                     {
                         "role": "system",

@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Lotus Learning Platform",
+    title="Lumina Learning Platform",
     description="Personalized AI-powered learning platform backend",
     version="0.1.0",
     lifespan=lifespan,

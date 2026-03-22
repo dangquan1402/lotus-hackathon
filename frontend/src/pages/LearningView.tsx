@@ -208,7 +208,7 @@ export default function LearningView() {
             <div className="flex items-center gap-2">
               <span className="text-lg hidden sm:block">💎</span>
               <span className="font-bold text-base hidden sm:block" style={{ fontFamily: "'Playfair Display', serif", color: 'var(--forest)' }}>
-                Lotus
+                Lumina
               </span>
             </div>
           </div>

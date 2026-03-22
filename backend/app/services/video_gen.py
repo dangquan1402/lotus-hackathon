@@ -207,14 +207,36 @@ async def agenerate_video(
     # Build phrases from alignment words — clause-aware splitting
     phrases = _build_phrases(words)
 
-    # Compensate for TransitionSeries overlap and frame rounding:
+    # Get actual audio duration to ensure video >= audio
+    audio_duration_s = 0
+    audio_file = audio_path
+    # Also check for .mp3 version (ElevenLabs outputs mp3)
+    if not audio_file.exists() and audio_file.suffix == ".wav":
+        audio_file = audio_file.with_suffix(".mp3")
+    try:
+        if audio_file.suffix == ".wav":
+            import wave
+
+            with wave.open(str(audio_file)) as wf:
+                audio_duration_s = wf.getnframes() / wf.getframerate()
+        else:
+            from mutagen import File as MutagenFile
+
+            mf = MutagenFile(str(audio_file))
+            if mf and mf.info:
+                audio_duration_s = mf.info.length
+    except Exception:
+        # Fallback: use alignment end + buffer
+        if words:
+            audio_duration_s = words[-1]["end"] + 2.0
+
+    # Compensate for TransitionSeries overlap:
     # Remotion total = sum(scene_frames) - (N-1)*transition_frames
-    # Each scene also loses up to 0.5 frames from Math.round().
-    # Add overlap + 1s safety buffer to the last scene so video >= audio.
     transition_frames = 15
     fps_val = 30
     num_transitions = max(len(scenes) - 1, 0)
     total_overlap_s = num_transitions * (transition_frames / fps_val)
+
     if scenes and total_overlap_s > 0:
         pad_per_scene = total_overlap_s / len(scenes)
         for sc in scenes:
@@ -223,12 +245,19 @@ async def agenerate_video(
                 clip_pad = pad_per_scene / len(sc["clip_images"])
                 for ci in sc["clip_images"]:
                     ci["duration_s"] = round(ci["duration_s"] + clip_pad, 2)
-    # Add 1s buffer to last scene to cover alignment-to-audio gap + rounding
-    if scenes:
-        scenes[-1]["duration_s"] = round(scenes[-1]["duration_s"] + 1.0, 2)
-        if scenes[-1].get("clip_images"):
-            last_clips = scenes[-1]["clip_images"]
-            last_clips[-1]["duration_s"] = round(last_clips[-1]["duration_s"] + 1.0, 2)
+
+    # Ensure total scene duration covers the full audio
+    if scenes and audio_duration_s > 0:
+        total_scene_s = sum(sc["duration_s"] for sc in scenes)
+        effective_video_s = total_scene_s - total_overlap_s
+        shortfall = audio_duration_s - effective_video_s + 0.5  # +0.5s safety
+        if shortfall > 0:
+            scenes[-1]["duration_s"] = round(scenes[-1]["duration_s"] + shortfall, 2)
+            if scenes[-1].get("clip_images"):
+                last_clips = scenes[-1]["clip_images"]
+                last_clips[-1]["duration_s"] = round(
+                    last_clips[-1]["duration_s"] + shortfall, 2
+                )
 
     render_config = {
         "fps": 30,

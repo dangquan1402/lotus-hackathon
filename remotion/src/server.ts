@@ -27,7 +27,11 @@ app.post("/render", (req, res) => {
   const outputPath = `${sessionDir}/video/lesson_${session_id}.mp4`;
 
   try {
-    // Ensure directories exist
+    // Clean and recreate public dir to avoid stale files from prior renders
+    const fs = require("fs");
+    if (existsSync(publicDir)) {
+      fs.rmSync(publicDir, { recursive: true, force: true });
+    }
     mkdirSync(path.dirname(outputPath), { recursive: true });
     mkdirSync(publicDir, { recursive: true });
 
@@ -53,17 +57,26 @@ app.post("/render", (req, res) => {
       }
     }
 
-    // Copy narration
-    const narrationSrc = `${sessionDir}/narration.wav`;
-    if (existsSync(narrationSrc)) {
-      copyFileSync(narrationSrc, path.join(publicDir, "narration.wav"));
+    // Copy narration (wav or mp3)
+    const narrationWav = `${sessionDir}/narration.wav`;
+    const narrationMp3 = `${sessionDir}/narration.mp3`;
+    if (existsSync(narrationWav)) {
+      copyFileSync(narrationWav, path.join(publicDir, "narration.wav"));
+    } else if (existsSync(narrationMp3)) {
+      copyFileSync(narrationMp3, path.join(publicDir, "narration.mp3"));
     }
+
+    // Determine audio filename
+    const audioFile = existsSync(path.join(publicDir, "narration.wav"))
+      ? "narration.wav"
+      : "narration.mp3";
 
     // Write story-scenes.json
     const storyData = {
       title: `Lesson ${session_id}`,
       scenes: scenes,
       phrases: phrases || [],
+      audio_file: audioFile,
       render_config: render_config || {
         fps: 30,
         width: 1920,

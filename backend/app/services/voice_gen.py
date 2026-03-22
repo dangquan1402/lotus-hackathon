@@ -7,9 +7,7 @@ import httpx
 VOICE_API = os.environ.get("VOICE_API_URL", "http://localhost:8882")
 
 # ElevenLabs config
-ELEVENLABS_API_KEY = os.environ.get(
-    "ELEVENLABS_API_KEY", "sk_8807e2ea893d23c16e790b734607ee4e94fe89817b3ed86e"
-)
+ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")
 ELEVENLABS_MODEL_ID = os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
 
@@ -176,7 +174,7 @@ async def _align_stt_elevenlabs(audio_path: Path, language: str = "en") -> dict:
 # ---------------------------------------------------------------------------
 
 
-async def agenerate_voice(text: str, output_path: Path, provider: str = "local") -> Path:
+async def agenerate_voice(text: str, output_path: Path, provider: str = "elevenlabs") -> Path:
     """Generate voice audio from text.
 
     Args:
@@ -198,7 +196,7 @@ async def agenerate_voice(text: str, output_path: Path, provider: str = "local")
 async def aalign_audio(
     audio_path: Path,
     language: str = "en",
-    provider: str = "local",
+    provider: str = "elevenlabs",
     text: str = "",
 ) -> dict:
     """Run word-level alignment on audio.

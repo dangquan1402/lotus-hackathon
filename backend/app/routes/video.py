@@ -107,7 +107,7 @@ async def generate_voice(
     """Generate narration audio and word-level alignment."""
     session = await _get_session(payload.session_id, db)
     content = session.generated_content
-    voice_provider = session.voice_provider or "local"
+    voice_provider = session.voice_provider or "elevenlabs"
     audio_path = Path(session.output_dir) / "narration.wav"
 
     try:
@@ -231,7 +231,7 @@ async def generate_all(
     """Run full pipeline: images → voice → align → render. Convenience endpoint."""
     session = await _get_session(payload.session_id, db)
     content = session.generated_content
-    voice_provider = session.voice_provider or "local"
+    voice_provider = session.voice_provider or "elevenlabs"
     session_dir = Path(session.output_dir)
     images_dir = session_dir / "images"
     audio_path = session_dir / "narration.wav"
@@ -335,7 +335,7 @@ async def generate_section_audio(
 ) -> GenerateSectionAudioResponse:
     """Generate audio for a single section's narration text."""
     session = await _get_session(payload.session_id, db)
-    voice_provider = session.voice_provider or "local"
+    voice_provider = session.voice_provider or "elevenlabs"
     audio_dir = Path(session.output_dir) / "audio"
     output_path = audio_dir / f"section_{payload.section_index}.wav"
 

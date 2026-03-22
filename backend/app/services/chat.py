@@ -1,9 +1,7 @@
 import asyncio
 import json
-import re
 import time
 from collections.abc import AsyncGenerator
-from pathlib import Path
 from typing import Annotated, TypedDict
 
 import httpx
@@ -11,16 +9,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 
-CONFIG_PATH = Path.home() / ".fuseapi" / "config.json"
-MODELS = ["gpt-5.1"]
-
-
-def _load_config():
-    config = json.loads(CONFIG_PATH.read_text())
-    profile = config["profiles"][config["default"]]
-    endpoint = profile["endpoint"]
-    endpoint = re.sub(r"^(https?):(?!//)", r"\1://", endpoint)
-    return endpoint, profile["apiKey"]
+from app.services.llm import get_llm_config
 
 
 class ChatState(TypedDict):
@@ -74,28 +63,25 @@ def _build_system_prompt(session_context: dict) -> str:
 
 def respond(state: ChatState) -> dict:
     """Call the LLM with session context and message history."""
-    endpoint, api_key = _load_config()
+    base_url, api_key, model = get_llm_config()
     api_messages = _build_api_messages(state)
 
     resp = None
-    for model in MODELS:
-        for attempt in range(2):
-            resp = httpx.post(
-                f"{endpoint}/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": model,
-                    "messages": api_messages,
-                    "temperature": 0.7,
-                },
-                timeout=120,
-            )
-            if resp.status_code in (429, 529) and attempt < 1:
-                time.sleep(3)
-                continue
-            break
-        if resp.status_code == 200:
-            break
+    for attempt in range(2):
+        resp = httpx.post(
+            f"{base_url}/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": model,
+                "messages": api_messages,
+                "temperature": 0.7,
+            },
+            timeout=120,
+        )
+        if resp.status_code in (429, 529) and attempt < 1:
+            time.sleep(3)
+            continue
+        break
     resp.raise_for_status()
 
     ai_content = resp.json()["choices"][0]["message"]["content"].strip()
@@ -125,14 +111,14 @@ async def respond_stream(
     state: ChatState,
 ) -> AsyncGenerator[str, None]:
     """Stream LLM response chunks. Yields content strings."""
-    endpoint, api_key = _load_config()
+    base_url, api_key, model = get_llm_config()
     api_messages = _build_api_messages(state)
 
     async with httpx.AsyncClient(timeout=120) as client:
-        for model in MODELS:
+        for attempt in range(2):
             async with client.stream(
                 "POST",
-                f"{endpoint}/v1/chat/completions",
+                f"{base_url}/v1/chat/completions",
                 headers={"Authorization": f"Bearer {api_key}"},
                 json={
                     "model": model,
@@ -141,7 +127,7 @@ async def respond_stream(
                     "stream": True,
                 },
             ) as resp:
-                if resp.status_code in (429, 529):
+                if resp.status_code in (429, 529) and attempt < 1:
                     await resp.aread()
                     await asyncio.sleep(3)
                     continue
@@ -160,7 +146,7 @@ async def respond_stream(
                     content = delta.get("content")
                     if content:
                         yield content
-                return  # success, don't try next model
+                return  # success
 
 
 def build_chat_graph():

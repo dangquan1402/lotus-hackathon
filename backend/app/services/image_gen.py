@@ -1,5 +1,7 @@
+import asyncio
 import base64
 import json
+import os
 import re
 from pathlib import Path
 
@@ -8,7 +10,8 @@ import httpx
 CONFIG_PATH = Path.home() / ".fuseapi" / "config.json"
 MODEL = "gemini-3.1-flash-image"
 
-GROK_BASE_URL = "http://localhost:8420"
+GROK_BASE_URL = os.environ.get("GROK_API_URL", "http://host.docker.internal:8420")
+_GROK_SEM = asyncio.Semaphore(4)  # max 4 concurrent Grok requests
 
 # Map size_hint "WxH" to Grok aspect_ratio
 _SIZE_TO_ASPECT: dict[str, str] = {
@@ -91,27 +94,34 @@ async def _generate_image_grok(
     full_prompt = STYLE_PREFIXES.get(style, "") + prompt if style else prompt
     aspect_ratio = _SIZE_TO_ASPECT.get(size_hint, "16:9")
 
-    async with httpx.AsyncClient(timeout=120) as client:
-        response = await client.post(
-            f"{GROK_BASE_URL}/api/generate-images",
-            json={
-                "prompt": full_prompt,
-                "aspect_ratio": aspect_ratio,
-                "num_images": 1,
-            },
-        )
-        response.raise_for_status()
+    async with _GROK_SEM:
+        response = None
+        async with httpx.AsyncClient(timeout=120) as client:
+            for attempt in range(3):
+                response = await client.post(
+                    f"{GROK_BASE_URL}/api/generate-images",
+                    json={
+                        "prompt": full_prompt[:500],
+                        "aspect_ratio": aspect_ratio,
+                        "num_images": 1,
+                    },
+                )
+                if response.status_code >= 500 and attempt < 2:
+                    await asyncio.sleep(2)
+                    continue
+                break
+            response.raise_for_status()
 
-    data = response.json()
-    images = data.get("images", [])
-    if not images:
-        raise ValueError(f"No images in Grok response: {data}")
+        data = response.json()
+        images = data.get("images", [])
+        if not images:
+            raise ValueError(f"No images in Grok response: {data}")
 
-    # Download the image from Grok's static server
-    image_url = images[0]["url"]
-    async with httpx.AsyncClient(timeout=60) as client:
-        img_response = await client.get(f"{GROK_BASE_URL}{image_url}")
-        img_response.raise_for_status()
+        # Download the image from Grok's static server
+        image_url = images[0]["url"]
+        async with httpx.AsyncClient(timeout=60) as client:
+            img_response = await client.get(f"{GROK_BASE_URL}{image_url}")
+            img_response.raise_for_status()
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(img_response.content)
@@ -123,7 +133,7 @@ async def agenerate_image(
     output_path: Path,
     size_hint: str = "1280x720",
     style: str | None = None,
-    provider: str = "fuseapi",
+    provider: str = "grok",
 ) -> Path:
     """Generate an image from a text prompt and save to disk.
 

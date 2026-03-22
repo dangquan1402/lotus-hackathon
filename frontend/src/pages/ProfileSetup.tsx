@@ -155,7 +155,7 @@ export default function ProfileSetup() {
             <span className="text-2xl">💎</span>
           </div>
           <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Playfair Display', serif", color: 'var(--forest)' }}>
-            Welcome to Lotus
+            Welcome to Lumina
           </h1>
           <p className="text-base" style={{ color: 'var(--muted)' }}>
             Tell us about yourself to personalize your learning journey

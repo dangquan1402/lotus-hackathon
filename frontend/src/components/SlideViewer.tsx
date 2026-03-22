@@ -379,12 +379,15 @@ function SlidePresenter({
                 d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
             </svg>
             <audio
+              key={`audio-${current}`}
               ref={audioRef}
               controls
-              src={`/api/files/session_${sessionId}/audio/section_${current}.wav`}
               className="h-9 flex-1"
               style={{ maxWidth: '100%' }}
-            />
+            >
+              <source src={`/api/files/session_${sessionId}/audio/section_${current}.mp3`} type="audio/mpeg" />
+              <source src={`/api/files/session_${sessionId}/audio/section_${current}.wav`} type="audio/wav" />
+            </audio>
           </div>
         </div>
       )}

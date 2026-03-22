@@ -65,11 +65,13 @@ export const RemotionRoot: React.FC = () => {
         phrases: [],
         transitionDurationFrames: DEFAULT_RENDER_CONFIG.transition_frames!,
         renderConfig: DEFAULT_RENDER_CONFIG,
+        audioFile: "narration.wav",
       }}
       calculateMetadata={async ({ props }: { props: LessonVideoProps }) => {
         let scenes: Scene[] = props.scenes;
         let phrases: Phrase[] = props.phrases;
         let renderConfig: RenderConfig = { ...DEFAULT_RENDER_CONFIG, ...props.renderConfig };
+        let audioFile = props.audioFile ?? "narration.wav";
 
         if (scenes === FALLBACK_SCENES || scenes.length === 0) {
           try {
@@ -79,6 +81,7 @@ export const RemotionRoot: React.FC = () => {
               scenes = data.scenes;
               phrases = data.phrases ?? [];
               renderConfig = { ...DEFAULT_RENDER_CONFIG, ...data.render_config };
+              audioFile = data.audio_file ?? "narration.wav";
             }
           } catch {
             // Use fallback scenes
@@ -99,6 +102,7 @@ export const RemotionRoot: React.FC = () => {
             phrases,
             transitionDurationFrames: transitionFrames,
             renderConfig,
+            audioFile,
           },
         };
       }}

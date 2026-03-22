@@ -40,6 +40,7 @@ export interface LessonData {
   title: string;
   scenes: Scene[];
   phrases?: Phrase[];
+  audio_file?: string;
   render_config?: RenderConfig;
 }
 
@@ -48,4 +49,5 @@ export interface LessonVideoProps {
   phrases: Phrase[];
   transitionDurationFrames: number;
   renderConfig: RenderConfig;
+  audioFile: string;
 }

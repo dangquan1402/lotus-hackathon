@@ -49,7 +49,7 @@ async def explore_topic(
     # Resolve image style: per-lesson override > user profile > fallback
     resolved_image_style = payload.image_style or user.image_style or "cartoon"
     resolved_image_provider = payload.image_provider or "grok"
-    resolved_voice_provider = payload.voice_provider or "local"
+    resolved_voice_provider = payload.voice_provider or "elevenlabs"
 
     # If resuming from an assessed session
     if payload.session_id:

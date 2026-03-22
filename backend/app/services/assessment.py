@@ -1,6 +1,5 @@
 import json
 import re
-from pathlib import Path
 from typing import TypedDict
 
 import httpx
@@ -8,17 +7,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-# Reuse FuseAPI config loading from content.py
-CONFIG_PATH = Path.home() / ".fuseapi" / "config.json"
-MODELS = ["gpt-5.1"]
-
-
-def _load_config():
-    config = json.loads(CONFIG_PATH.read_text())
-    profile = config["profiles"][config["default"]]
-    endpoint = profile["endpoint"]
-    endpoint = re.sub(r"^(https?):(?!//)", r"\1://", endpoint)
-    return endpoint, profile["apiKey"]
+from app.services.llm import get_llm_config
 
 
 class AssessmentState(TypedDict):
@@ -33,7 +22,7 @@ class AssessmentState(TypedDict):
 
 def generate_questions(state: AssessmentState) -> dict:
     """Analyze search results + user profile, generate targeted questions."""
-    endpoint, api_key = _load_config()
+    base_url, api_key, model = get_llm_config()
 
     search_summary = "\n".join(
         f"- {r.get('title', '')}: {r.get('markdown', '')[:300]}"
@@ -88,24 +77,21 @@ and one open-ended about what specifically interests them."""
     import time
 
     resp = None
-    for model in MODELS:
-        for attempt in range(2):
-            resp = httpx.post(
-                f"{endpoint}/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.7,
-                },
-                timeout=120,
-            )
-            if resp.status_code in (429, 529) and attempt < 1:
-                time.sleep(3)
-                continue
-            break
-        if resp.status_code == 200:
-            break
+    for attempt in range(2):
+        resp = httpx.post(
+            f"{base_url}/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+            },
+            timeout=120,
+        )
+        if resp.status_code in (429, 529) and attempt < 1:
+            time.sleep(3)
+            continue
+        break
     resp.raise_for_status()
 
     raw = resp.json()["choices"][0]["message"]["content"].strip()
@@ -131,7 +117,7 @@ def collect_answers(state: AssessmentState) -> dict:
 
 def summarize_assessment(state: AssessmentState) -> dict:
     """Summarize what the user knows/doesn't know based on their answers."""
-    endpoint, api_key = _load_config()
+    base_url, api_key, model = get_llm_config()
 
     qa_text = ""
     for q in state["questions"]:
@@ -151,10 +137,20 @@ This summary will be used to personalize their lesson content. Be specific and a
 
     import time
 
-    resp = None
-    for model in MODELS:
+    resp = httpx.post(
+        f"{base_url}/v1/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.5,
+        },
+        timeout=60,
+    )
+    if resp.status_code in (429, 529):
+        time.sleep(3)
         resp = httpx.post(
-            f"{endpoint}/v1/chat/completions",
+            f"{base_url}/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
             json={
                 "model": model,
@@ -163,9 +159,6 @@ This summary will be used to personalize their lesson content. Be specific and a
             },
             timeout=60,
         )
-        if resp.status_code == 200:
-            break
-        time.sleep(2)
     resp.raise_for_status()
 
     summary = resp.json()["choices"][0]["message"]["content"].strip()

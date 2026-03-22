@@ -163,6 +163,7 @@ export const LessonVideo: React.FC<LessonVideoProps> = ({
   phrases,
   transitionDurationFrames,
   renderConfig,
+  audioFile,
 }) => {
   const fps = renderConfig.fps ?? DEFAULT_FPS;
   const layout = renderConfig.layout ?? "overlay";
@@ -170,7 +171,7 @@ export const LessonVideo: React.FC<LessonVideoProps> = ({
 
   return (
     <AbsoluteFill style={{ backgroundColor: bgColor }}>
-      <Audio src={staticFile("narration.wav")} />
+      <Audio src={staticFile(audioFile ?? "narration.wav")} />
 
       <TransitionSeries>
         {scenes.map((scene, i) => {
